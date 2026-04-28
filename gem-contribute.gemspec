@@ -16,14 +16,15 @@ Gem::Specification.new do |spec|
     developer can go from "I noticed an issue" to "I have a working branch" in
     seconds. v0.1 supports GitHub-hosted gems with OAuth device-flow auth.
   DESC
-  spec.homepage = "https://github.com/cdhagmann/gem-contribute"
+  spec.homepage = "https://cdhagmann.com/gem-contribute/"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"
 
-  spec.metadata["source_code_uri"] = spec.homepage
-  spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
-  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
-  spec.metadata["documentation_uri"] = "https://cdhagmann.com/gem-contribute/"
+  github_repo = "https://github.com/cdhagmann/gem-contribute"
+  spec.metadata["source_code_uri"] = github_repo
+  spec.metadata["bug_tracker_uri"] = "#{github_repo}/issues"
+  spec.metadata["changelog_uri"] = "#{github_repo}/blob/main/CHANGELOG.md"
+  spec.metadata["documentation_uri"] = spec.homepage
   spec.metadata["rubygems_mfa_required"] = "true"
 
   gemspec = File.basename(__FILE__)
