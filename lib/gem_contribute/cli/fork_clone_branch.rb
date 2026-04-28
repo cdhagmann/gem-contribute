@@ -175,6 +175,10 @@ module GemContribute
         run!(["git", "-C", path, "remote", "add", name, url])
       end
 
+      def push(path, remote, branch)
+        run!(["git", "-C", path, "push", "-u", remote, branch])
+      end
+
       def remote_exists?(path, name)
         out, _err, status = Open3.capture3("git", "-C", path, "remote")
         status.success? && out.split("\n").include?(name)

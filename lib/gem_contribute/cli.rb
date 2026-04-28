@@ -10,6 +10,7 @@ module GemContribute
     autoload :Issues, "gem_contribute/cli/issues"
     autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
     autoload :Git, "gem_contribute/cli/fork_clone_branch"
+    autoload :Submit, "gem_contribute/cli/submit"
     USAGE = <<~USAGE
       Usage: gem-contribute <command> [options]
 
@@ -25,6 +26,9 @@ module GemContribute
         auth logout              Remove the cached token for github.com.
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
                                  (alias: fork-clone-branch)
+        submit                   Push the current branch and open a pre-filled
+                                 PR compare page in the browser. Run from inside
+                                 a clone created by `fix`.
 
       Global options:
         --refresh                Invalidate caches before running.
@@ -43,22 +47,41 @@ module GemContribute
     end
 
     def dispatch(command, argv, stdout:, stderr:)
-      case command
-      when nil, "help", "-h", "--help"
-        stdout.puts USAGE
-        0
-      when "scan"   then Scan.new(stdout: stdout, stderr: stderr, adapter: github_adapter).run(argv)
-      when "issues" then Issues.new(stdout: stdout, stderr: stderr, adapter: github_adapter).run(argv)
-      when "config" then Config.new(stdout: stdout, stderr: stderr).run(argv)
-      when "auth"   then Auth.new(stdout: stdout, stderr: stderr).run(argv)
-      when "fix", "fork-clone-branch"
-        ForkCloneBranch.new(stdout: stdout, stderr: stderr,
-                            clone_root: GemContribute::Config.new.clone_root).run(argv)
-      else
-        stderr.puts "gem-contribute: unknown command #{command.inspect}"
-        stderr.puts USAGE
-        2
+      builder = COMMANDS[command]
+      if builder.nil?
+        return print_help(stdout) if [nil, "help", "-h", "--help"].include?(command)
+
+        return unknown_command(command, stderr)
       end
+
+      builder.call(stdout, stderr).run(argv)
+    end
+
+    COMMANDS = {
+      "scan" => ->(o, e) { Scan.new(stdout: o, stderr: e, adapter: github_adapter) },
+      "issues" => ->(o, e) { Issues.new(stdout: o, stderr: e, adapter: github_adapter) },
+      "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
+      "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
+      "fix" => lambda { |o, e|
+        ForkCloneBranch.new(stdout: o, stderr: e,
+                            clone_root: GemContribute::Config.new.clone_root)
+      },
+      "fork-clone-branch" => lambda { |o, e|
+        ForkCloneBranch.new(stdout: o, stderr: e,
+                            clone_root: GemContribute::Config.new.clone_root)
+      },
+      "submit" => ->(o, e) { Submit.new(stdout: o, stderr: e) }
+    }.freeze
+
+    def print_help(stdout)
+      stdout.puts USAGE
+      0
+    end
+
+    def unknown_command(command, stderr)
+      stderr.puts "gem-contribute: unknown command #{command.inspect}"
+      stderr.puts USAGE
+      2
     end
 
     def github_adapter

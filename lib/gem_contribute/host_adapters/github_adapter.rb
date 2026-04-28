@@ -31,6 +31,13 @@ module GemContribute
         @rate_limit = nil
       end
 
+      # @return [Hash] a single issue's full payload (uncached — submit only).
+      def issue(owner, repo, number)
+        ensure_known_host!(Project.new(gem_name: repo, host: "github.com",
+                                       owner: owner, repo: repo, metadata: {}))
+        get_json("/repos/#{owner}/#{repo}/issues/#{number}")
+      end
+
       # @return [Array<Hash>] open issues filtered to the given labels (if any)
       def issues(project, labels: nil)
         ensure_known_host!(project)
