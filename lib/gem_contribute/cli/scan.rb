@@ -85,7 +85,7 @@ module GemContribute
           [project, count]
         end.compact
 
-        results.sort_by { |_, count| -count }.first(10)
+        results.reject { |_, count| count.zero? }.sort_by { |_, count| -count }
       end
 
       def issue_count(project)

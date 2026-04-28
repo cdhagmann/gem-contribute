@@ -6,6 +6,8 @@ module GemContribute
   module CLI
     autoload :Scan, "gem_contribute/cli/scan"
     autoload :Auth, "gem_contribute/cli/auth"
+    autoload :Config, "gem_contribute/cli/config"
+    autoload :Issues, "gem_contribute/cli/issues"
     autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
     autoload :Git, "gem_contribute/cli/fork_clone_branch"
     USAGE = <<~USAGE
@@ -14,6 +16,10 @@ module GemContribute
       Commands:
         scan [path]              Summarize the contributable surface of a Gemfile.lock.
                                  Path defaults to ./Gemfile.lock.
+        issues <gem|all>         List open "good first issue" issues for a gem (or all gems).
+        config set <key> <val>   Persist a configuration value.
+        config get <key>         Print a configuration value.
+        config list              Print all configuration values.
         auth login               Authenticate with GitHub via OAuth device flow.
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
@@ -33,23 +39,31 @@ module GemContribute
     def run(argv, stdout: $stdout, stderr: $stderr)
       argv = argv.dup
       handle_global_flags!(argv, stdout: stdout)
+      dispatch(argv.shift, argv, stdout: stdout, stderr: stderr)
+    end
 
-      command = argv.shift
+    def dispatch(command, argv, stdout:, stderr:)
       case command
       when nil, "help", "-h", "--help"
         stdout.puts USAGE
         0
-      when "scan"
-        Scan.new(stdout: stdout, stderr: stderr).run(argv)
-      when "auth"
-        Auth.new(stdout: stdout, stderr: stderr).run(argv)
+      when "scan"   then Scan.new(stdout: stdout, stderr: stderr, adapter: github_adapter).run(argv)
+      when "issues" then Issues.new(stdout: stdout, stderr: stderr, adapter: github_adapter).run(argv)
+      when "config" then Config.new(stdout: stdout, stderr: stderr).run(argv)
+      when "auth"   then Auth.new(stdout: stdout, stderr: stderr).run(argv)
       when "fork-clone-branch"
-        ForkCloneBranch.new(stdout: stdout, stderr: stderr).run(argv)
+        ForkCloneBranch.new(stdout: stdout, stderr: stderr,
+                            clone_root: GemContribute::Config.new.clone_root).run(argv)
       else
         stderr.puts "gem-contribute: unknown command #{command.inspect}"
         stderr.puts USAGE
         2
       end
+    end
+
+    def github_adapter
+      token = TokenStore.new.token_for("github.com")
+      HostAdapters::GitHubAdapter.new(token: token)
     end
 
     def handle_global_flags!(argv, stdout:)
