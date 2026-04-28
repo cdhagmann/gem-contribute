@@ -1,0 +1,88 @@
+name: Auto-merge KICKED_THE_TIRES.yml PRs
+
+# Triggers on PRs that touch KICKED_THE_TIRES.yml. If the PR ONLY touches
+# that file and the YAML passes the schema check, the PR is squash-merged
+# automatically. Anything else (multi-file PRs, malformed YAML, schema
+# violations) leaves the PR open for manual review.
+#
+# Security note: we use pull_request_target so the workflow itself runs
+# from the base branch (trusted) and has write permissions, but we never
+# check out the PR HEAD. The proposed YAML is fetched via the GitHub API
+# as text — it's data, not code, and is never executed.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'KICKED_THE_TIRES.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate-and-merge:
+    runs-on: ubuntu-latest
+    steps:
+      # Default checkout (no `ref:`) gets the BASE branch, not the PR HEAD.
+      # Our lint script lives there and is trusted.
+      - uses: actions/checkout@v4
+
+      - name: Confirm only KICKED_THE_TIRES.yml changed
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          changed=$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only)
+          echo "Files in this PR:"
+          echo "$changed"
+
+          if [ "$changed" = "KICKED_THE_TIRES.yml" ]; then
+            echo "auto_merge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "auto_merge=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR touches files beyond KICKED_THE_TIRES.yml; skipping auto-merge."
+          fi
+
+      - name: Fetch the proposed YAML content
+        if: steps.check.outputs.auto_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Pull the file via the API rather than checking out the PR HEAD.
+          gh api "/repos/$REPO/contents/KICKED_THE_TIRES.yml?ref=$PR_HEAD_SHA" \
+            -H "Accept: application/vnd.github.raw" > KICKED_THE_TIRES.yml
+
+      - name: Validate schema
+        if: steps.check.outputs.auto_merge == 'true'
+        run: ruby script/lint-kicked-tires.rb
+
+      - name: Auto-merge
+        if: steps.check.outputs.auto_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          gh pr comment "$PR_NUMBER" --repo "$REPO" \
+            --body "🎉 Thanks @${PR_AUTHOR} for kicking the tires! Auto-merging."
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+
+      - name: Comment on validation failure
+        if: failure() && steps.check.outputs.auto_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$REPO" \
+            --body "❌ Auto-merge skipped — the YAML didn't pass validation. See the [run log]($RUN_URL) for the specific error, then push a fix and the workflow will re-run."
