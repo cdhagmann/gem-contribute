@@ -156,11 +156,13 @@ Chris Hagmann · Blue Ridge Ruby 2026
 
 ---
 
-<!-- Speaker note: Hold for 2 beats. Let the room read it.
-     This is the entire problem in one sentence. -->
+<!-- Speaker note: Hold for 3 beats. Let the room read it.
+     Don't say "Gemfile" or "lockfile" yet — that's the bundle fund
+     reveal three slides from now. -->
 
-> I have opinions about Sidekiq.
-> I don't contribute to Sidekiq.
+> Every Ruby developer has wanted to contribute back.
+>
+> Most have never figured out where to start.
 
 ---
 
