@@ -27,7 +27,7 @@ module GemContribute
     # OAuth App Client ID. Public by design — see ADR-0004 and MAINTAINER.md.
     # The sentinel below is intentionally unusable; replace with the real
     # value after walking through MAINTAINER.md's OAuth App registration.
-    CLIENT_ID = ENV.fetch("GEM_CONTRIBUTE_CLIENT_ID", "FILL_ME_IN_FROM_MAINTAINER_MD")
+    CLIENT_ID = ENV.fetch("GEM_CONTRIBUTE_CLIENT_ID", "Ov23liZNcwIo17OIVUsv")
 
     DeviceCode = Data.define(:device_code, :user_code, :verification_uri, :expires_at, :interval) do
       def expired?(now: Time.now)
