@@ -2,23 +2,21 @@
 # practice the fork → clone → branch → submit loop end-to-end.
 #
 # To add yourself: append a new entry below. Anything beyond `handle` and
-# `date` is optional. The `location` block is reserved for a future
-# Rooibos TUI view that plots contributors on Ratatui's world-map widget;
-# providing it is opt-in.
+# `date` is optional. `location` is reserved for a future Rooibos TUI
+# view that plots contributors on Ratatui's world-map widget; providing
+# it is opt-in. The map's geocoding script (added when that view lands)
+# turns these strings into lat/long.
 #
 # Schema:
 #   - handle: your-github-handle           # required, no leading @
 #     date: YYYY-MM-DD                     # required; the day you ran submit
 #     note: "one-line freeform message"    # optional
-#     location:                            # optional; future world-map TUI
-#       name: "City, Region, Country"      #   freeform display string
-#       country: US                        #   ISO 3166-1 alpha-2 code
-#       lat: 35.5951                       #   decimal degrees, +N
-#       lon: -82.5515                      #   decimal degrees, +E
+#     location: "City, Region, Country"    # optional; e.g. "Asheville, NC, US"
+#                                          # or just "US" for country-level
 #
-# Country alone is enough for region-level rendering. `lat`/`lon` get you
-# a precise pin. Don't share more precision than you're comfortable with.
+# Use whatever precision you're comfortable with — "US" is fine.
 
 - handle: cdhagmann
   date: 2026-04-28
   note: "Built gem-contribute. First through the loop."
+  location: "Asheville, NC, US"
