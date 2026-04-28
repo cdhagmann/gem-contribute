@@ -6,6 +6,17 @@ require_relative "gem_contribute/errors"
 module GemContribute
   autoload :LockedGem, "gem_contribute/locked_gem"
   autoload :Project, "gem_contribute/project"
+
+  # The canonical Project for gem-contribute itself. Used by the CLI to
+  # short-circuit resolution (gem-contribute isn't on RubyGems yet) and
+  # to auto-inject the tool into its own scan results.
+  SELF_PROJECT = Project.new(
+    gem_name: "gem-contribute",
+    host: "github.com",
+    owner: "cdhagmann",
+    repo: "gem-contribute",
+    metadata: { self_injected: true }
+  ).freeze
   autoload :LockfileParser, "gem_contribute/lockfile_parser"
   autoload :Cache, "gem_contribute/cache"
   autoload :Resolver, "gem_contribute/resolver"

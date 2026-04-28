@@ -84,6 +84,8 @@ module GemContribute
       end
 
       def resolve_or_fail(gem_name)
+        return GemContribute::SELF_PROJECT if gem_name == GemContribute::SELF_PROJECT.gem_name
+
         gem = LockedGem.new(name: gem_name, version: "*", source_type: :rubygems, source_uri: "https://rubygems.org/")
         project = @resolver.resolve(gem)
 

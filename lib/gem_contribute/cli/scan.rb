@@ -21,17 +21,6 @@ module GemContribute
       # filtering. Future stages can call once per label and dedupe.
       DEFAULT_LABEL = "good first issue"
 
-      # gem-contribute auto-injects itself into every scan: the tool you're
-      # using is, by definition, an open-source project the user can
-      # contribute back to. Dogfood plus discoverability.
-      SELF_PROJECT = Project.new(
-        gem_name: "gem-contribute",
-        host: "github.com",
-        owner: "cdhagmann",
-        repo: "gem-contribute",
-        metadata: { self_injected: true }
-      ).freeze
-
       def initialize(stdout: $stdout, stderr: $stderr, resolver: Resolver.new, adapter: HostAdapters::GitHubAdapter.new)
         @stdout = stdout
         @stderr = stderr
@@ -64,9 +53,9 @@ module GemContribute
       private
 
       def inject_self(github_projects)
-        return github_projects if github_projects.any? { |p| p.gem_name == SELF_PROJECT.gem_name }
+        return github_projects if github_projects.any? { |p| p.gem_name == GemContribute::SELF_PROJECT.gem_name }
 
-        github_projects + [SELF_PROJECT]
+        github_projects + [GemContribute::SELF_PROJECT]
       end
 
       def scan_github_projects(projects)
