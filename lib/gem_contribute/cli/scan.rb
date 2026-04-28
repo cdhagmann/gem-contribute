@@ -21,6 +21,17 @@ module GemContribute
       # filtering. Future stages can call once per label and dedupe.
       DEFAULT_LABEL = "good first issue"
 
+      # gem-contribute auto-injects itself into every scan: the tool you're
+      # using is, by definition, an open-source project the user can
+      # contribute back to. Dogfood plus discoverability.
+      SELF_PROJECT = Project.new(
+        gem_name: "gem-contribute",
+        host: "github.com",
+        owner: "cdhagmann",
+        repo: "gem-contribute",
+        metadata: { self_injected: true }
+      ).freeze
+
       def initialize(stdout: $stdout, stderr: $stderr, resolver: Resolver.new, adapter: HostAdapters::GitHubAdapter.new)
         @stdout = stdout
         @stderr = stderr
@@ -36,6 +47,8 @@ module GemContribute
         @stdout.puts "Scanning #{path} (#{gems.size} gems)..."
 
         projects = gems.map { |gem| @resolver.resolve(gem) }
+        # Summary tally reflects only the lockfile contents — the
+        # self-injection is intentionally additive, not part of the count.
         print_summary(tally_hosts(projects), gems.size)
         scan_github_projects(projects)
         0
@@ -50,15 +63,20 @@ module GemContribute
 
       private
 
-      def scan_github_projects(projects)
-        github_projects = projects.select { |p| p.host == "github.com" }
-        if github_projects.empty?
-          @stdout.puts
-          @stdout.puts "No github.com projects in this lockfile."
-          return
-        end
+      def inject_self(github_projects)
+        return github_projects if github_projects.any? { |p| p.gem_name == SELF_PROJECT.gem_name }
 
-        print_ranked(rank_by_issue_count(github_projects))
+        github_projects + [SELF_PROJECT]
+      end
+
+      def scan_github_projects(projects)
+        github_from_lockfile = projects.select { |p| p.host == "github.com" }
+        @stdout.puts "\nNo github.com projects in this lockfile." if github_from_lockfile.empty?
+
+        ranked = rank_by_issue_count(inject_self(github_from_lockfile))
+        return if ranked.empty?
+
+        print_ranked(ranked)
       end
 
       def tally_hosts(projects)

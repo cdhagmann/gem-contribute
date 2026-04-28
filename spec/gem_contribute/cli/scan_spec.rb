@@ -61,12 +61,22 @@ RSpec.describe GemContribute::CLI::Scan do
     expect(rack_line).to be < rake_line
   end
 
-  it "prints a no-github message and stops cleanly when no gems resolve to github.com" do
+  it "prints a no-github message when no lockfile gems resolve to github.com" do
     allow(resolver).to receive(:resolve).and_return(unresolved_project("rake"))
+    allow(adapter).to receive(:issues).and_return([])
 
     expect(scan.run([lockfile])).to eq(0)
     expect(stdout.string).to include("No github.com projects")
-    expect(adapter).not_to have_received(:issues) if adapter.respond_to?(:issues)
+  end
+
+  it "auto-injects gem-contribute itself into the ranked list" do
+    allow(resolver).to receive(:resolve).and_return(unresolved_project("rake"))
+    allow(adapter).to receive(:issues) do |proj, _opts|
+      proj.gem_name == "gem-contribute" ? [{ "number" => 1 }, { "number" => 2 }] : []
+    end
+
+    expect(scan.run([lockfile])).to eq(0)
+    expect(stdout.string).to match(%r{gem-contribute\s+2\s+github\.com/cdhagmann/gem-contribute})
   end
 
   it "exits 1 with a clear stderr message when the lockfile is missing" do
