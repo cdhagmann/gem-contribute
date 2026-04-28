@@ -152,4 +152,51 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
       expect { adapter.issues(project) }.to raise_error(GemContribute::AdapterError, /502/)
     end
   end
+
+  describe "301 redirect handling" do
+    it "follows a single redirect and returns the result from the new location" do
+      stub_request(:get, %r{api\.github\.com/repos/sickill/rainbow/issues})
+        .to_return(status: 301,
+                   headers: { "Location" => "https://api.github.com/repos/ku1ik/rainbow/issues" })
+      stub_request(:get, %r{api\.github\.com/repos/ku1ik/rainbow/issues})
+        .to_return(status: 200,
+                   headers: { "Content-Type" => "application/json" },
+                   body: JSON.dump([{ "number" => 1, "title" => "A bug",
+                                      "html_url" => "https://github.com/ku1ik/rainbow/issues/1" }]))
+
+      renamed = GemContribute::Project.new(
+        gem_name: "rainbow", host: "github.com", owner: "sickill", repo: "rainbow", metadata: {}
+      )
+      issues = adapter.issues(renamed)
+      expect(issues.first["number"]).to eq(1)
+    end
+
+    it "re-applies the original query params after the redirect" do
+      stub_request(:get, %r{api\.github\.com/repos/old/repo/issues})
+        .with(query: hash_including("labels" => "good first issue"))
+        .to_return(status: 301,
+                   headers: { "Location" => "https://api.github.com/repos/new/repo/issues" })
+      stub_request(:get, %r{api\.github\.com/repos/new/repo/issues})
+        .with(query: hash_including("labels" => "good first issue"))
+        .to_return(status: 200,
+                   headers: { "Content-Type" => "application/json" },
+                   body: "[]")
+
+      moved = GemContribute::Project.new(
+        gem_name: "gem", host: "github.com", owner: "old", repo: "repo", metadata: {}
+      )
+      expect(adapter.issues(moved, labels: ["good first issue"])).to eq([])
+    end
+
+    it "raises AdapterError after exhausting the redirect limit" do
+      stub_request(:get, %r{api\.github\.com/repos/loop/repo})
+        .to_return(status: 301,
+                   headers: { "Location" => "https://api.github.com/repos/loop/repo" })
+
+      looping = GemContribute::Project.new(
+        gem_name: "loop", host: "github.com", owner: "loop", repo: "repo", metadata: {}
+      )
+      expect { adapter.issues(looping) }.to raise_error(GemContribute::AdapterError, /301/)
+    end
+  end
 end

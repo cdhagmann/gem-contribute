@@ -17,6 +17,7 @@ module GemContribute
       API_BASE = "https://api.github.com"
       ACCEPT = "application/vnd.github+json"
       API_VERSION = "2022-11-28"
+      MAX_REDIRECTS = 3
 
       RateLimit = Data.define(:limit, :remaining, :reset_at)
 
@@ -143,12 +144,19 @@ module GemContribute
         decode_response(response, path)
       end
 
-      def http_get(path, params)
+      def http_get(path, params, redirects_remaining: MAX_REDIRECTS)
         url = URI("#{API_BASE}#{path}")
         url.query = URI.encode_www_form(params) unless params.empty?
-        @http.start(url.host, url.port, use_ssl: true) do |conn|
+        response = @http.start(url.host, url.port, use_ssl: true) do |conn|
           conn.get(url.request_uri, request_headers)
         end
+
+        if response.is_a?(Net::HTTPMovedPermanently) && redirects_remaining.positive?
+          new_path = URI(response["Location"]).path
+          return http_get(new_path, params, redirects_remaining: redirects_remaining - 1)
+        end
+
+        response
       end
 
       def http_post(path, body)
