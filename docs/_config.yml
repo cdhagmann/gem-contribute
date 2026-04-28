@@ -1,0 +1,30 @@
+title: gem-contribute
+description: Find contributable issues in the gems your project already depends on.
+url: https://cdhagmann.github.io/gem-contribute
+baseurl: /gem-contribute
+theme: jekyll-theme-cayman
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+
+# Process the existing markdown files in docs/ as pages, but don't try to
+# render them as posts.
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+# Don't try to publish working notes that aren't intended as docs.
+exclude:
+  - claude-code-prompt.md
+  - prep-plan.md
+  - workshop-issues/
+
+# Make markdown links to other .md files Just Work in the rendered HTML.
+relative_links:
+  enabled: true
+  collections: true
+include:
+  - CONTRIBUTING.md
+  - CHANGELOG.md
