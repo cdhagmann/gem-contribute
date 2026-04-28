@@ -102,12 +102,18 @@ module GemContribute
         local_path = clone_into_root(project, clone_url)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
         @git.checkout_branch(local_path, branch_name)
+        # `submit` needs to know the canonical project to point the PR at.
+        # Naming it `upstream` follows the standard fork workflow convention.
+        @git.add_remote(local_path, "upstream",
+                        "https://github.com/#{project.owner}/#{project.repo}.git")
 
         @stdout.puts "Forked, cloned, and branched."
         @stdout.puts "  path:   #{local_path}"
         @stdout.puts "  branch: #{branch_name}"
         @stdout.puts "  upstream: https://github.com/#{project.owner}/#{project.repo}"
         @stdout.puts "  fork:     https://github.com/#{viewer}/#{project.repo}"
+        @stdout.puts
+        @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
         0
       end
 
@@ -159,6 +165,19 @@ module GemContribute
 
       def checkout_branch(path, branch)
         run!(["git", "-C", path, "checkout", "-b", branch])
+      end
+
+      def add_remote(path, name, url)
+        # Idempotent: if the remote already exists (e.g. reusing a clone)
+        # we silently succeed rather than fail the whole flow.
+        return if remote_exists?(path, name)
+
+        run!(["git", "-C", path, "remote", "add", name, url])
+      end
+
+      def remote_exists?(path, name)
+        out, _err, status = Open3.capture3("git", "-C", path, "remote")
+        status.success? && out.split("\n").include?(name)
       end
 
       def run!(argv)

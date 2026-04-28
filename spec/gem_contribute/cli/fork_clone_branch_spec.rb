@@ -33,6 +33,7 @@ RSpec.describe GemContribute::CLI::ForkCloneBranch do
     allow(resolver).to receive(:resolve).and_return(project)
     allow(git).to receive(:clone)
     allow(git).to receive(:checkout_branch)
+    allow(git).to receive(:add_remote)
   end
 
   after { FileUtils.rm_rf(tmpdir) }
@@ -67,6 +68,7 @@ RSpec.describe GemContribute::CLI::ForkCloneBranch do
     expect(cli.run(["sidekiq/1234"])).to eq(0)
     expect(git).to have_received(:clone).with("https://github.com/alice/sidekiq.git", target)
     expect(git).to have_received(:checkout_branch).with(target, "gem-contribute/issue-1234")
+    expect(git).to have_received(:add_remote).with(target, "upstream", "https://github.com/sidekiq/sidekiq.git")
     expect(stdout.string).to include("Forking sidekiq/sidekiq")
     expect(stdout.string).to include(target)
     expect(stdout.string).to include("gem-contribute/issue-1234")

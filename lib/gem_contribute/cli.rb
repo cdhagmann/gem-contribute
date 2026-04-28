@@ -23,8 +23,8 @@ module GemContribute
         auth login               Authenticate with GitHub via OAuth device flow.
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
-        fork-clone-branch <gem>/<issue#>
-                                 Fork the gem's repo, clone the fork, branch from main.
+        fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
+                                 (alias: fork-clone-branch)
 
       Global options:
         --refresh                Invalidate caches before running.
@@ -51,7 +51,7 @@ module GemContribute
       when "issues" then Issues.new(stdout: stdout, stderr: stderr, adapter: github_adapter).run(argv)
       when "config" then Config.new(stdout: stdout, stderr: stderr).run(argv)
       when "auth"   then Auth.new(stdout: stdout, stderr: stderr).run(argv)
-      when "fork-clone-branch"
+      when "fix", "fork-clone-branch"
         ForkCloneBranch.new(stdout: stdout, stderr: stderr,
                             clone_root: GemContribute::Config.new.clone_root).run(argv)
       else
