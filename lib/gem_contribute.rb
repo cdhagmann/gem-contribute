@@ -10,6 +10,8 @@ module GemContribute
   autoload :Cache, "gem_contribute/cache"
   autoload :Resolver, "gem_contribute/resolver"
   autoload :HostAdapter, "gem_contribute/host_adapter"
+  autoload :Auth, "gem_contribute/auth"
+  autoload :TokenStore, "gem_contribute/token_store"
   autoload :CLI, "gem_contribute/cli"
 
   module HostAdapters
