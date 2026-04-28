@@ -61,9 +61,7 @@ data.each_with_index do |entry, i|
   date_ok = date.is_a?(Date) || (date.is_a?(String) && date.match?(DATE_PATTERN))
   fail! "entry #{num}: date must be YYYY-MM-DD" unless date_ok
 
-  if entry.key?("note") && !entry["note"].is_a?(String)
-    fail! "entry #{num}: note must be a string"
-  end
+  fail! "entry #{num}: note must be a string" if entry.key?("note") && !entry["note"].is_a?(String)
 
   if entry.key?("location") && !entry["location"].is_a?(String)
     fail! "entry #{num}: location must be a string (not a nested object)"

@@ -40,9 +40,13 @@ module GemContribute
         issue_number = parse_issue_number(branch)
         return 1 if issue_number.nil?
 
-        origin = parse_remote("origin")
-        upstream = parse_remote("upstream")
-        return 1 if origin.nil? || upstream.nil?
+        origin = parse_remote("origin", required: true)
+        return 1 if origin.nil?
+
+        # When the user owns the upstream (e.g. self-dogfooding) there's no
+        # separate fork and no `upstream` remote — fall back to origin and
+        # build a same-repo PR.
+        upstream = parse_remote("upstream", required: false) || origin
 
         title = fetch_issue_title(upstream, issue_number)
         push_branch(branch)
@@ -74,11 +78,13 @@ module GemContribute
         nil
       end
 
-      def parse_remote(name)
+      def parse_remote(name, required:)
         out, _err, status = Open3.capture3("git", "-C", @working_dir, "remote", "get-url", name)
         unless status.success?
-          @stderr.puts "submit: no `#{name}` remote configured. " \
-                       "Was this clone created by `gem-contribute fix`?"
+          if required
+            @stderr.puts "submit: no `#{name}` remote configured. " \
+                         "Are you inside a git clone?"
+          end
           return nil
         end
 
@@ -110,12 +116,13 @@ module GemContribute
       end
 
       def compare_url(upstream, origin, branch, issue_number, title)
-        # GitHub compare URL form for cross-fork PR creation:
-        #   /<upstream>/compare/<base>...<fork-owner>:<branch>?expand=1
-        # We don't know the upstream default branch without an extra API call,
-        # so we let GitHub auto-resolve it by omitting `<base>...` and using
-        # the simpler form. `expand=1` opens the PR creation form pre-filled.
-        head = "#{origin[:owner]}:#{branch}"
+        # GitHub compare URL forms:
+        #   Cross-fork:  /<upstream>/compare/<fork-owner>:<branch>
+        #   Same-repo:   /<upstream>/compare/<branch>
+        # We omit the explicit base so GitHub auto-resolves to default.
+        # `expand=1` opens the PR creation form pre-filled.
+        same_repo = origin[:owner] == upstream[:owner] && origin[:repo] == upstream[:repo]
+        head = same_repo ? branch : "#{origin[:owner]}:#{branch}"
         full_title = title ? "Fix ##{issue_number}: #{title}" : "Fix ##{issue_number}"
         params = {
           "expand" => "1",

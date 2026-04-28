@@ -43,11 +43,25 @@ RSpec.describe GemContribute::CLI::Submit do
     expect(stderr.string).to include("doesn't match")
   end
 
-  it "exits 1 if the upstream remote isn't configured" do
+  it "falls back to a same-repo compare URL when no upstream remote is configured" do
     Dir.chdir(tmpdir) { system("git remote remove upstream") }
+    allow(adapter).to receive(:issue).with("alice", "sidekiq", 42)
+                                     .and_return("title" => "Improve batching")
+
+    expect(cli.run([])).to eq(0)
+
+    expect(opener).to have_received(:call) do |url|
+      # Same-repo form: no `<owner>:` prefix on the head ref.
+      expect(url).to start_with("https://github.com/alice/sidekiq/compare/gem-contribute/issue-42?")
+      expect(url).not_to include("alice:gem-contribute/issue-42")
+    end
+  end
+
+  it "exits 1 if the origin remote isn't configured" do
+    Dir.chdir(tmpdir) { system("git remote remove origin") }
 
     expect(cli.run([])).to eq(1)
-    expect(stderr.string).to include("`upstream` remote")
+    expect(stderr.string).to include("`origin` remote")
   end
 
   it "pushes the branch, builds a compare URL with title prefilled, and opens the browser",
