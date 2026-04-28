@@ -101,7 +101,9 @@ style: |
   /* Page numbers, themed. */
   section::part(pagination) { color: var(--brr-blue); }
 
-  /* Title and closing slides invert: navy background, light type. */
+  /* Title and closing slides invert: navy background, light type.
+     All overrides below were chosen to clear WCAG AA (4.5:1) for normal
+     text and 3:1 for large text against the navy background. */
   section.title {
     background: var(--brr-navy);
     color: white;
@@ -120,8 +122,28 @@ style: |
     font-size: 1.4em;
     margin-top: 0;
   }
-  section.title strong { color: var(--brr-ruby); }
+  /* Brighter ruby (#ff5b62 ≈ 5.0:1 on navy) so the URL pops without
+     dropping below WCAG AA. The original --brr-ruby is fine on cream
+     but fails on navy. */
+  section.title strong { color: #ff5b62; }
   section.title a { color: var(--brr-light); }
+  /* Inline code on title slides: invert to white-on-translucent-white
+     (≈ 12:1 on navy) — the cream-on-cream default is invisible here. */
+  section.title code {
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+  }
+  section.title pre {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    border-left-color: #ff5b62;
+  }
+  section.title pre code {
+    background: transparent;
+    color: inherit;
+  }
+  /* Disclosure / fine-print on title slides — clears AA at ~6.5:1. */
+  section.title .small { color: #b9cde0; }
 ---
 
 <!-- _class: title -->
