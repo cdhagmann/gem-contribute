@@ -68,16 +68,54 @@ module GemContribute
         @cache.write("files", cache_key, body)
       end
 
-      def fork(_project)
+      # POST /repos/:owner/:repo/forks. Returns the fork's parsed body
+      # (clone_url, owner.login, name, etc.). GitHub responds 202 (accepted)
+      # immediately even if the fork is still propagating; callers that need
+      # to clone right after may want to poll readiness — see
+      # `fork_ready?` below.
+      def fork(project)
         raise AuthRequired, "github.com" unless @token
 
-        raise NotImplementedError, "fork is implemented in Stage 2"
+        ensure_known_host!(project)
+        post_json("/repos/#{project.owner}/#{project.repo}/forks")
       end
 
-      def already_forked?(_project)
+      # GET /repos/:viewer/:repo. True iff the viewer already owns a fork of
+      # the upstream repo at the same name.
+      def already_forked?(project)
         raise AuthRequired, "github.com" unless @token
 
-        raise NotImplementedError, "already_forked? is implemented in Stage 2"
+        ensure_known_host!(project)
+        viewer = viewer_login
+        get_json("/repos/#{viewer}/#{project.repo}")
+        true
+      rescue AdapterError => e
+        return false if e.message.include?("404")
+
+        raise
+      end
+
+      # GET /user. Used by `auth status` and `already_forked?`. Returns the
+      # authenticated user's login string (e.g. "cdhagmann").
+      def viewer_login
+        raise AuthRequired, "github.com" unless @token
+
+        body = get_json("/user")
+        body.fetch("login")
+      end
+
+      # GET /repos/:viewer/:repo, returning true once GitHub has finished
+      # provisioning the fork. The fork endpoint returns 202 immediately;
+      # the resource may 404 for a few seconds before becoming live.
+      def fork_ready?(viewer, repo_name)
+        raise AuthRequired, "github.com" unless @token
+
+        get_json("/repos/#{viewer}/#{repo_name}")
+        true
+      rescue AdapterError => e
+        return false if e.message.include?("404")
+
+        raise
       end
 
       private
@@ -99,6 +137,12 @@ module GemContribute
         decode_response(response, path)
       end
 
+      def post_json(path, body = nil)
+        response = http_post(path, body)
+        record_rate_limit(response)
+        decode_response(response, path)
+      end
+
       def http_get(path, params)
         url = URI("#{API_BASE}#{path}")
         url.query = URI.encode_www_form(params) unless params.empty?
@@ -107,8 +151,18 @@ module GemContribute
         end
       end
 
+      def http_post(path, body)
+        url = URI("#{API_BASE}#{path}")
+        @http.start(url.host, url.port, use_ssl: true) do |conn|
+          request = Net::HTTP::Post.new(url.request_uri, request_headers.merge("Content-Type" => "application/json"))
+          request.body = JSON.dump(body) if body
+          conn.request(request)
+        end
+      end
+
       def decode_response(response, path)
         case response
+        when Net::HTTPNoContent then nil
         when Net::HTTPSuccess then JSON.parse(response.body)
         when Net::HTTPUnauthorized, Net::HTTPForbidden
           raise AuthRequired, "github.com" if @token.nil?

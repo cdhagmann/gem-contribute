@@ -79,6 +79,72 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
     end
   end
 
+  context "with a token" do
+    let(:adapter) { described_class.new(cache: cache, token: "gho_test") }
+
+    describe "#fork" do
+      it "POSTs to /repos/:owner/:repo/forks and returns the parsed body" do
+        stub_request(:post, "https://api.github.com/repos/sidekiq/sidekiq/forks")
+          .with(headers: { "Authorization" => "Bearer gho_test" })
+          .to_return(
+            status: 202,
+            headers: { "Content-Type" => "application/json" },
+            body: JSON.dump("name" => "sidekiq", "owner" => { "login" => "alice" },
+                            "clone_url" => "https://github.com/alice/sidekiq.git",
+                            "default_branch" => "main")
+          )
+
+        body = adapter.fork(project)
+        expect(body["clone_url"]).to eq("https://github.com/alice/sidekiq.git")
+        expect(body["owner"]["login"]).to eq("alice")
+      end
+    end
+
+    describe "#already_forked?" do
+      before do
+        stub_request(:get, "https://api.github.com/user")
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: JSON.dump("login" => "alice"))
+      end
+
+      it "returns true when GET /repos/:viewer/:repo succeeds" do
+        stub_request(:get, "https://api.github.com/repos/alice/sidekiq")
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: JSON.dump("name" => "sidekiq"))
+        expect(adapter.already_forked?(project)).to be(true)
+      end
+
+      it "returns false on 404" do
+        stub_request(:get, "https://api.github.com/repos/alice/sidekiq").to_return(status: 404)
+        expect(adapter.already_forked?(project)).to be(false)
+      end
+    end
+
+    describe "#viewer_login" do
+      it "returns the authenticated user's login from GET /user" do
+        stub_request(:get, "https://api.github.com/user")
+          .with(headers: { "Authorization" => "Bearer gho_test" })
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: JSON.dump("login" => "alice"))
+        expect(adapter.viewer_login).to eq("alice")
+      end
+    end
+
+    describe "#fork_ready?" do
+      it "returns true when GET /repos/:viewer/:name returns 200" do
+        stub_request(:get, "https://api.github.com/repos/alice/sidekiq")
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: JSON.dump("name" => "sidekiq"))
+        expect(adapter.fork_ready?("alice", "sidekiq")).to be(true)
+      end
+
+      it "returns false on 404 (still propagating)" do
+        stub_request(:get, "https://api.github.com/repos/alice/sidekiq").to_return(status: 404)
+        expect(adapter.fork_ready?("alice", "sidekiq")).to be(false)
+      end
+    end
+  end
+
   describe "non-200 from a public endpoint" do
     it "raises AdapterError with the status" do
       stub_request(:get, %r{api\.github\.com/repos/sidekiq/sidekiq/issues})
