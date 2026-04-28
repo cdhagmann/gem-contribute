@@ -142,17 +142,22 @@ Chris Hagmann · Blue Ridge Ruby 2026
 
 ---
 
-## Where do I even start?
+## What already exists
 
-- `gh search issues "good first issue"` → no project context
-- "Help wanted on Ruby gems" → not a search that exists
-- Trawling GitHub trending → overwhelming and irrelevant
+- **goodfirstissue.dev** · opt-in registry, sparse
+- **goodfirstissues.com** · opt-in registry, sparse
+- **github.com/topics/good-first-issue** · same opt-in problem
+- **forgoodfirstissue.github.com** · GitHub's own; curated, narrow
 
 <br>
 
-The thing I couldn't find:
+They all answer:
 
-> A tool that maps **"gems I depend on"** → **"issues I could fix today."**
+> *"What's contributable **somewhere on GitHub**?"*
+
+Nobody answers:
+
+> *"What's contributable **in my Gemfile.lock**?"*
 
 ---
 
