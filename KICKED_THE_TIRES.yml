@@ -1,0 +1,24 @@
+# People who've used gem-contribute against the sandbox issue (#5) to
+# practice the fork → clone → branch → submit loop end-to-end.
+#
+# To add yourself: append a new entry below. Anything beyond `handle` and
+# `date` is optional. The `location` block is reserved for a future
+# Rooibos TUI view that plots contributors on Ratatui's world-map widget;
+# providing it is opt-in.
+#
+# Schema:
+#   - handle: your-github-handle           # required, no leading @
+#     date: YYYY-MM-DD                     # required; the day you ran submit
+#     note: "one-line freeform message"    # optional
+#     location:                            # optional; future world-map TUI
+#       name: "City, Region, Country"      #   freeform display string
+#       country: US                        #   ISO 3166-1 alpha-2 code
+#       lat: 35.5951                       #   decimal degrees, +N
+#       lon: -82.5515                      #   decimal degrees, +E
+#
+# Country alone is enough for region-level rendering. `lat`/`lon` get you
+# a precise pin. Don't share more precision than you're comfortable with.
+
+- handle: cdhagmann
+  date: 2026-04-28
+  note: "Built gem-contribute. First through the loop."
