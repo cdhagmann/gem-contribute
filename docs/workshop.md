@@ -13,7 +13,7 @@ You depend on dozens of gems. Some of those projects need help. This tool finds 
 - 5 minutes to clone and `bundle install`
 
 ```
-git clone https://github.com/chagmann/gem-contribute
+git clone https://github.com/cdhagmann/gem-contribute
 cd gem-contribute
 bundle install
 bin/gem-contribute
@@ -35,7 +35,7 @@ The four-stage pipeline: parse → resolve → adapt → render. Where things ar
 
 **0:30 — 1:00 · Exercise: build a feature**
 
-Pick one issue from `https://github.com/chagmann/gem-contribute/issues?q=label:workshop`. They're scoped to be doable in 30 minutes by someone who's never touched the codebase. Examples:
+Pick one issue from `https://github.com/cdhagmann/gem-contribute/issues?q=label:workshop`. They're scoped to be doable in 30 minutes by someone who's never touched the codebase. Examples:
 
 - Add a "rate limit remaining" indicator to the status bar
 - Support `bug_tracker_uri` fallback to `homepage_uri` for older gems

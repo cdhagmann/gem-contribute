@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Generated binstub kept simple so bin/rspec works on a fresh checkout.
+
+require "rubygems"
+require "bundler/setup"
+load Gem.bin_path("rspec-core", "rspec")

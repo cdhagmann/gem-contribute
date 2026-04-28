@@ -1,35 +1,60 @@
-# Gem::Contribute
+# gem-contribute
 
-TODO: Delete this and the text below, and describe your gem
+A terminal UI for finding contributable issues in the gems your project already depends on.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/gem/contribute`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-## Installation
-
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
-
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```
+$ gem-contribute
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Reads your `Gemfile.lock`, resolves each gem to its source repository, and surfaces open issues — biased toward labels like `good first issue`, `help wanted`, and `documentation`. When you find an issue worth working on, one keystroke forks the repo, clones your fork, and creates a working branch.
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+The premise: the gems in your lockfile are the projects you have the most context on. If you depend on `sidekiq`, you have opinions about Sidekiq. That's a better starting point for open-source contribution than scanning all of GitHub for issues tagged `good-first-issue` and hoping one looks interesting.
+
+## Status
+
+Early. This is being built as a workshop project for **[Blue Ridge Ruby 2026](https://blueridgeruby.com)**. Expect rough edges through the conference. After that, expect slightly fewer rough edges.
+
+## Install
+
 ```
+gem install gem-contribute
+```
+
+Requires Ruby 3.2 or later. First run will prompt you to authorize the GitHub OAuth app via [device flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow) — same UX as `gh auth login`, no token paste, no client secret.
 
 ## Usage
 
-TODO: Write usage instructions here
+From any directory containing a `Gemfile.lock`:
 
-## Development
+```
+gem-contribute
+```
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Keys:
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+- `↑/↓` — move
+- `Enter` — drill into a gem's issues
+- `c` — read CONTRIBUTING.md for the selected project
+- `f` — fork, clone, and branch from the selected issue
+- `/` — filter
+- `q` — quit
+
+## Design
+
+See [`docs/design.md`](docs/design.md) for architecture, and [`docs/adr/`](docs/adr/) for specific decisions and the reasoning behind them.
+
+The short version: scan first, auth lazily, abstract the source host so GitHub isn't the only option forever, render the data as the maintainer wrote it (don't normalize labels, don't summarize CONTRIBUTING).
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/gem-contribute.
+The tool is for finding contributable projects, so it had better be one. See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues tagged `good first issue` are real and reviewed.
+
+If you're attending Blue Ridge Ruby 2026 and arrived here from the workshop, see [`docs/workshop.md`](docs/workshop.md) for the exercises.
+
+## Disclosure
+
+Built with substantial assistance from Claude (Anthropic). Architecture, design decisions, and code review are mine; a fair amount of the typing isn't. The decisions are documented in `docs/adr/` partly so the reasoning is auditable independent of who or what produced the diff.
+
+## License
+
+MIT.

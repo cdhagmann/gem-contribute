@@ -1,8 +1,53 @@
+require:
+  - rubocop-rake
+  - rubocop-rspec
+
 AllCops:
   TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "tmp/**/*"
+    - "pkg/**/*"
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
+
+# Most projects (and the RSpec community) treat the implicit blocks RSpec
+# constructs as documentation, not procedural code. Exempting spec files
+# from BlockLength keeps the linter useful elsewhere.
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "*.gemspec"
+    - "Rakefile"
+
+Metrics/MethodLength:
+  Max: 15
+
+Metrics/AbcSize:
+  Max: 20
+
+# We don't ship docstring-level docs; ADRs cover the why, code names cover
+# the what. Don't badger contributors for module-level YARD comments.
+Style/Documentation:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Max: 6
+
+RSpec/ExampleLength:
+  Max: 30
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 8
+
+RSpec/DescribedClass:
+  Enabled: true
+
+RSpec/NestedGroups:
+  Max: 4

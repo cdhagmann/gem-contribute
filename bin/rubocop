@@ -1,8 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "rubygems"
 require "bundler/setup"
-require "gem_contribute"
-
-require "irb"
-IRB.start(__FILE__)
+load Gem.bin_path("rubocop", "rubocop")

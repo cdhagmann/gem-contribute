@@ -1,3 +1,7 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-require "gem/contribute"
+require "gem_contribute"
+require "gem_contribute/cli"
+
+exit GemContribute::CLI.run(ARGV)

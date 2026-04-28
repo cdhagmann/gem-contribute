@@ -5,7 +5,7 @@ Thanks for considering a contribution. This project is *about* lowering the fric
 ## Quick start
 
 ```
-git clone https://github.com/chagmann/gem-contribute
+git clone https://github.com/cdhagmann/gem-contribute
 cd gem-contribute
 bundle install
 bin/rspec               # tests should pass on a clean checkout
