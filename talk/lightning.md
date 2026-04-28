@@ -158,11 +158,33 @@ Chris Hagmann · Blue Ridge Ruby 2026
 
 <!-- Speaker note: Hold for 3 beats. Let the room read it.
      Don't say "Gemfile" or "lockfile" yet — that's the bundle fund
-     reveal three slides from now. -->
+     reveal four slides from now. -->
 
 > Every Ruby developer has wanted to contribute back.
 >
 > Most have never figured out where to start.
+
+---
+
+<!-- Speaker note: This is the talk title made literal. You're at
+     Hack Day right now. So was I, in March. The list I went looking
+     for is the one I'm about to show you. -->
+
+## Building what you cannot find
+
+I signed up to help organize **Hack Day** for this conference.
+
+<br>
+
+I needed a list of **good Ruby projects** to point people at.
+
+<br>
+
+That list didn't exist.
+
+<br>
+
+> So I built one.
 
 ---
 
@@ -317,18 +339,6 @@ I'll watch the auto-merge fire on screen behind me.
 
 <!-- Speaker note: Pull up the Actions tab on the second monitor.
      If wifi is bad, fall back to recorded video. -->
-
----
-
-## What I deliberately did NOT do
-
-- **Don't normalize labels.** "easy" might mean "easy for a beginner" or "easy once you understand the architecture." The maintainer chose the word.
-- **Don't summarize CONTRIBUTING.md.** Reading the contributing guide *is* contributor onboarding.
-- **Don't ship a Bundler plugin.** Standalone gem; works on every project without changing their Gemfile.
-
-<br>
-
-<span class="small">Decisions are documented as ADRs in `docs/adr/`. The reasoning outlives the code.</span>
 
 ---
 
