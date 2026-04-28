@@ -21,11 +21,15 @@ module GemContribute
 
       DEFAULT_HOST = "github.com"
 
-      def initialize(stdout: $stdout, stderr: $stderr, store: TokenStore.new, sleeper: ->(s) { Kernel.sleep(s) })
+      def initialize(stdout: $stdout, stderr: $stderr, store: TokenStore.new,
+                     sleeper: ->(s) { Kernel.sleep(s) },
+                     browser_opener: nil, clipper: nil)
         @stdout = stdout
         @stderr = stderr
         @store = store
         @sleeper = sleeper
+        @browser_opener = browser_opener || method(:default_browser_opener)
+        @clipper = clipper || method(:default_clipper)
       end
 
       def run(argv)
@@ -56,8 +60,14 @@ module GemContribute
       end
 
       def prompt_user(device_code)
-        @stdout.puts "First, copy your one-time code: #{device_code.user_code}"
-        @stdout.puts "Then visit: #{device_code.verification_uri}"
+        copied = @clipper.call(device_code.user_code)
+        code_suffix = copied ? " (copied to clipboard)" : ""
+        @stdout.puts "Your one-time code#{code_suffix}: #{device_code.user_code}"
+
+        opened = @browser_opener.call(device_code.verification_uri)
+        url_prefix = opened ? "Browser opened to" : "Visit"
+        @stdout.puts "#{url_prefix}: #{device_code.verification_uri}"
+
         @stdout.puts "Waiting for you to authorize..."
       end
 
@@ -124,6 +134,30 @@ module GemContribute
           @stdout.puts "No cached token for #{DEFAULT_HOST}."
         end
         0
+      end
+
+      def default_browser_opener(uri)
+        cmd = case RbConfig::CONFIG["host_os"]
+              when /darwin/           then "open"
+              when /linux/            then "xdg-open"
+              when /mswin|mingw|cygwin/ then "start"
+              end
+        cmd && Kernel.system(cmd, uri)
+      rescue StandardError
+        false
+      end
+
+      def default_clipper(text)
+        case RbConfig::CONFIG["host_os"]
+        when /darwin/
+          IO.popen("pbcopy", "w") { |p| p.write(text) }
+          true
+        when /linux/
+          IO.popen(["xclip", "-selection", "clipboard"], "w") { |p| p.write(text) }
+          true
+        end
+      rescue StandardError
+        false
       end
     end
   end

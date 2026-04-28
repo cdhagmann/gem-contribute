@@ -8,7 +8,12 @@ RSpec.describe GemContribute::CLI::Auth do
   let(:tmpdir) { Dir.mktmpdir("gem-contribute-cli-auth-") }
   let(:store) { GemContribute::TokenStore.new(path: File.join(tmpdir, "auth.json")) }
   let(:sleeper) { ->(_secs) {} }
-  let(:cli) { described_class.new(stdout: stdout, stderr: stderr, store: store, sleeper: sleeper) }
+  let(:browser_opener) { ->(_uri) { false } }
+  let(:clipper) { ->(_text) { false } }
+  let(:cli) do
+    described_class.new(stdout: stdout, stderr: stderr, store: store,
+                        sleeper: sleeper, browser_opener: browser_opener, clipper: clipper)
+  end
 
   before { stub_const("ENV", ENV.to_h.merge("GEM_CONTRIBUTE_CLIENT_ID" => "Iv1.testid")) }
   after { FileUtils.rm_rf(tmpdir) }
@@ -54,7 +59,8 @@ RSpec.describe GemContribute::CLI::Auth do
 
       sleeps = []
       cli = described_class.new(stdout: stdout, stderr: stderr, store: store,
-                                sleeper: ->(s) { sleeps << s })
+                                sleeper: ->(s) { sleeps << s },
+                                browser_opener: browser_opener, clipper: clipper)
 
       expect(cli.run(["login"])).to eq(0)
       expect(sleeps).to eq([5, 10]) # initial 5s, then bumped to 10s after slow_down
