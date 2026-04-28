@@ -4,24 +4,124 @@ theme: default
 paginate: true
 size: 16:9
 style: |
+  /* Blue Ridge Ruby 2026 palette, pulled from the conference mark. */
+  :root {
+    --brr-light:  #a8cce4;  /* pale ridge blue */
+    --brr-ruby:   #c2272e;  /* ruby red */
+    --brr-blue:   #2872b4;  /* mid blue */
+    --brr-navy:   #0e2854;  /* deep navy */
+    --brr-cream:  #fbf9f5;  /* slide background */
+    --brr-ink:    #16213a;  /* body text */
+  }
+
   section {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    padding: 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+    background: var(--brr-cream);
+    color: var(--brr-ink);
+    padding: 60px 80px;
+    position: relative;
+  }
+
+  /* Subtle bottom accent bar — conference colors in order. */
+  section::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 6px;
+    background: linear-gradient(
+      to right,
+      var(--brr-light) 0% 25%,
+      var(--brr-ruby)  25% 50%,
+      var(--brr-blue)  50% 75%,
+      var(--brr-navy)  75% 100%
+    );
+  }
+
+  /* Header strap with the conference identifier on every content slide. */
+  section::after {
+    content: "Blue Ridge Ruby 2026 · gem-contribute";
+    position: absolute;
+    top: 28px; right: 80px;
+    font-size: 0.65em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brr-blue);
+  }
+
+  h1, h2, h3 {
+    color: var(--brr-navy);
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
   h1 { font-size: 2.4em; }
   h2 { font-size: 1.8em; }
-  code, pre { font-family: "JetBrains Mono", Menlo, monospace; }
-  pre { font-size: 0.85em; }
-  .small { font-size: 0.7em; color: #666; }
-  .big { font-size: 1.6em; }
+
+  a { color: var(--brr-blue); text-decoration: underline; }
+  strong { color: var(--brr-ruby); }
+
+  code, pre { font-family: "JetBrains Mono", "Fira Code", Menlo, monospace; }
+  code {
+    background: rgba(40, 114, 180, 0.10);
+    color: var(--brr-navy);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  pre {
+    font-size: 0.78em;
+    background: var(--brr-navy);
+    color: #f0f4fa;
+    padding: 18px 22px;
+    border-radius: 6px;
+    border-left: 4px solid var(--brr-ruby);
+  }
+  pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
   blockquote {
     font-size: 1.5em;
-    border-left: 4px solid #cc0000;
-    padding-left: 24px;
+    border-left: 6px solid var(--brr-ruby);
+    padding: 8px 0 8px 28px;
     margin-left: 0;
+    color: var(--brr-navy);
+    font-style: normal;
+    font-weight: 500;
   }
-  section.title h1 { font-size: 3em; }
-  section.title { text-align: center; padding-top: 20%; }
+
+  table { border-collapse: collapse; }
+  th { background: var(--brr-navy); color: white; padding: 10px 16px; }
+  td { padding: 8px 16px; border-bottom: 1px solid var(--brr-light); }
+  tr:last-child td { border-bottom: none; }
+
+  .small { font-size: 0.7em; color: #5a6a82; }
+  .big { font-size: 1.6em; }
+
+  /* Page numbers, themed. */
+  section::part(pagination) { color: var(--brr-blue); }
+
+  /* Title and closing slides invert: navy background, light type. */
+  section.title {
+    background: var(--brr-navy);
+    color: white;
+    text-align: center;
+    padding-top: 18%;
+  }
+  section.title::after { color: var(--brr-light); }
+  section.title h1 {
+    color: white;
+    font-size: 3.2em;
+    margin-bottom: 0.1em;
+  }
+  section.title h2 {
+    color: var(--brr-light);
+    font-weight: 400;
+    font-size: 1.4em;
+    margin-top: 0;
+  }
+  section.title strong { color: var(--brr-ruby); }
+  section.title a { color: var(--brr-light); }
 ---
 
 <!-- _class: title -->
