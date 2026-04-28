@@ -1,0 +1,119 @@
+# frozen_string_literal: true
+
+module GemContribute
+  module CLI
+    # `gem-contribute issues <gem|all>` — list open "good first issue" issues.
+    #
+    # With a gem name: lists issues for that gem.
+    # With "all":     iterates every github.com gem in Gemfile.lock.
+    #
+    # Issue numbers appear prominently so they can be passed directly to
+    # `fork-clone-branch <gem>/<issue#>`.
+    class Issues
+      DEFAULT_LABEL = "good first issue"
+
+      def initialize(stdout: $stdout, stderr: $stderr,
+                     resolver: Resolver.new,
+                     adapter: HostAdapters::GitHubAdapter.new,
+                     lockfile_path: "Gemfile.lock")
+        @stdout = stdout
+        @stderr = stderr
+        @resolver = resolver
+        @adapter = adapter
+        @lockfile_path = lockfile_path
+      end
+
+      def run(argv)
+        target = argv.shift
+        return print_usage if target.nil?
+
+        if target == "all"
+          run_all
+        else
+          project = resolve_or_fail(target)
+          return 1 if project.nil?
+
+          list_issues(project)
+        end
+      rescue AdapterError => e
+        @stderr.puts "gem-contribute: #{e.message}"
+        1
+      end
+
+      private
+
+      def print_usage
+        @stderr.puts "Usage: gem-contribute issues <gem|all>"
+        2
+      end
+
+      def run_all
+        gems = LockfileParser.parse(@lockfile_path)
+        projects = gems.filter_map do |gem|
+          project = @resolver.resolve(gem)
+          project if project.host == "github.com"
+        end
+
+        @stdout.puts "Scanning #{projects.size} github.com gems from #{@lockfile_path}...\n\n"
+
+        any = false
+        projects.each do |project|
+          issues = fetch_issues(project)
+          next if issues.empty?
+
+          any = true
+          print_project_issues(project, issues)
+        end
+
+        @stdout.puts "(no good first issues found across #{projects.size} gems)" unless any
+        0
+      rescue LockfileNotFound => e
+        @stderr.puts "gem-contribute: #{e.message}"
+        1
+      end
+
+      def fetch_issues(project)
+        @adapter.issues(project, labels: [DEFAULT_LABEL])
+      rescue AdapterError => e
+        @stderr.puts "  warning: #{project.gem_name}: #{e.message}"
+        []
+      end
+
+      def resolve_or_fail(gem_name)
+        gem = LockedGem.new(name: gem_name, version: "*",
+                            source_type: :rubygems, source_uri: "https://rubygems.org/")
+        project = @resolver.resolve(gem)
+
+        if project.host != "github.com"
+          @stderr.puts "#{gem_name}: resolves to #{project.host} (only github.com is supported)"
+          return nil
+        end
+
+        project
+      end
+
+      def list_issues(project)
+        issues = @adapter.issues(project, labels: [DEFAULT_LABEL])
+        print_project_issues(project, issues)
+        @stdout.puts "To contribute: gem-contribute fork-clone-branch #{project.gem_name}/<issue#>"
+        0
+      end
+
+      def print_project_issues(project, issues)
+        repo_url = "https://github.com/#{project.owner}/#{project.repo}"
+        @stdout.puts "#{project.gem_name} — #{issues.size} open \"#{DEFAULT_LABEL}\" issues (#{repo_url})"
+
+        if issues.empty?
+          @stdout.puts "  (none — browse #{repo_url}/issues directly)"
+        else
+          @stdout.puts
+          issues.each do |issue|
+            @stdout.puts "  ##{issue["number"]}  #{issue["title"]}"
+            @stdout.puts "        #{issue["html_url"]}"
+            @stdout.puts
+          end
+        end
+      end
+    end
+  end
+end
