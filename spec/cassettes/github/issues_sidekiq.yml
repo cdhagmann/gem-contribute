@@ -1,0 +1,102 @@
+---
+http_interactions:
+  - request:
+      method: get
+      uri: https://api.github.com/repos/sidekiq/sidekiq/issues?per_page=50&state=open
+      body:
+        encoding: US-ASCII
+        string: ''
+      headers:
+        Accept:
+          - application/vnd.github+json
+        User-Agent:
+          - gem-contribute/0.1.0
+        X-Github-Api-Version:
+          - '2022-11-28'
+    response:
+      status:
+        code: 200
+        message: OK
+      headers:
+        Content-Type:
+          - application/json; charset=utf-8
+        X-Ratelimit-Limit:
+          - '60'
+        X-Ratelimit-Remaining:
+          - '57'
+        X-Ratelimit-Reset:
+          - '1714510800'
+      body:
+        encoding: UTF-8
+        string: |
+          [
+            {
+              "number": 6543,
+              "title": "Document Sidekiq.client_middleware order",
+              "state": "open",
+              "html_url": "https://github.com/sidekiq/sidekiq/issues/6543",
+              "labels": [
+                {"name": "documentation", "color": "0075ca"}
+              ]
+            },
+            {
+              "number": 6542,
+              "title": "PR: handle empty queue gracefully",
+              "state": "open",
+              "html_url": "https://github.com/sidekiq/sidekiq/pull/6542",
+              "labels": [],
+              "pull_request": {"url": "https://api.github.com/repos/sidekiq/sidekiq/pulls/6542"}
+            },
+            {
+              "number": 6500,
+              "title": "Help wanted: review queue starvation patch",
+              "state": "open",
+              "html_url": "https://github.com/sidekiq/sidekiq/issues/6500",
+              "labels": [
+                {"name": "help wanted", "color": "008672"}
+              ]
+            }
+          ]
+    recorded_at: Sun, 27 Apr 2026 12:00:00 GMT
+  - request:
+      method: get
+      uri: https://api.github.com/repos/sidekiq/sidekiq/issues?labels=good%20first%20issue&per_page=50&state=open
+      body:
+        encoding: US-ASCII
+        string: ''
+      headers:
+        Accept:
+          - application/vnd.github+json
+        User-Agent:
+          - gem-contribute/0.1.0
+        X-Github-Api-Version:
+          - '2022-11-28'
+    response:
+      status:
+        code: 200
+        message: OK
+      headers:
+        Content-Type:
+          - application/json; charset=utf-8
+        X-Ratelimit-Limit:
+          - '60'
+        X-Ratelimit-Remaining:
+          - '56'
+        X-Ratelimit-Reset:
+          - '1714510800'
+      body:
+        encoding: UTF-8
+        string: |
+          [
+            {
+              "number": 6400,
+              "title": "Update CHANGELOG link in README",
+              "state": "open",
+              "html_url": "https://github.com/sidekiq/sidekiq/issues/6400",
+              "labels": [
+                {"name": "good first issue", "color": "7057ff"}
+              ]
+            }
+          ]
+    recorded_at: Sun, 27 Apr 2026 12:00:01 GMT
+recorded_with: VCR 6.3.1

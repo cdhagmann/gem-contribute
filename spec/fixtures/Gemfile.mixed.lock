@@ -1,0 +1,26 @@
+GIT
+  remote: https://github.com/example/some_gem.git
+  revision: 0123456789abcdef0123456789abcdef01234567
+  specs:
+    some_gem (0.1.0)
+
+PATH
+  remote: vendor/local_gem
+  specs:
+    local_gem (0.0.1)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rake (13.2.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  local_gem!
+  rake (~> 13.0)
+  some_gem!
+
+BUNDLED WITH
+   2.5.16

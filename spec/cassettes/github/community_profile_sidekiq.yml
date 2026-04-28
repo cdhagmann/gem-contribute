@@ -1,0 +1,42 @@
+---
+http_interactions:
+  - request:
+      method: get
+      uri: https://api.github.com/repos/sidekiq/sidekiq/community/profile
+      body:
+        encoding: US-ASCII
+        string: ''
+      headers:
+        Accept:
+          - application/vnd.github+json
+        User-Agent:
+          - gem-contribute/0.1.0
+        X-Github-Api-Version:
+          - '2022-11-28'
+    response:
+      status:
+        code: 200
+        message: OK
+      headers:
+        Content-Type:
+          - application/json; charset=utf-8
+        X-Ratelimit-Limit:
+          - '60'
+        X-Ratelimit-Remaining:
+          - '55'
+        X-Ratelimit-Reset:
+          - '1714510800'
+      body:
+        encoding: UTF-8
+        string: |
+          {
+            "health_percentage": 100,
+            "files": {
+              "code_of_conduct": {"name": "Code of Conduct", "url": null, "html_url": "https://github.com/sidekiq/sidekiq/blob/main/Code-of-Conduct.md"},
+              "contributing": {"url": "https://api.github.com/repos/sidekiq/sidekiq/contents/CONTRIBUTING.md", "html_url": "https://github.com/sidekiq/sidekiq/blob/main/CONTRIBUTING.md"},
+              "license": {"key": "lgpl-3.0", "name": "GNU Lesser General Public License v3.0", "url": "https://api.github.com/licenses/lgpl-3.0"},
+              "readme": {"url": "https://api.github.com/repos/sidekiq/sidekiq/contents/README.md", "html_url": "https://github.com/sidekiq/sidekiq/blob/main/README.md"}
+            }
+          }
+    recorded_at: Sun, 27 Apr 2026 12:00:00 GMT
+recorded_with: VCR 6.3.1

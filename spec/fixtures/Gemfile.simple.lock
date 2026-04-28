@@ -1,0 +1,21 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rake (13.2.1)
+    sidekiq (7.3.0)
+      connection_pool (>= 2.3.0)
+      logger
+      rack (>= 2.2.4)
+    connection_pool (2.4.1)
+    logger (1.6.1)
+    rack (3.1.7)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rake (~> 13.0)
+  sidekiq
+
+BUNDLED WITH
+   2.5.16
