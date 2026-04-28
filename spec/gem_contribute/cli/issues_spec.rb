@@ -59,7 +59,7 @@ RSpec.describe GemContribute::CLI::Issues do
     expect(out).to include("Fix trailing whitespace cop")
     expect(out).to include("https://github.com/rubocop/rubocop/issues/1234")
     expect(out).to include("#5678")
-    expect(out).to include("fork-clone-branch rubocop/<issue#>")
+    expect(out).to include("fix rubocop/<issue#>")
   end
 
   it "prints a friendly message when no issues are found" do

@@ -99,7 +99,7 @@ module GemContribute
       def list_issues(project)
         issues = @adapter.issues(project, labels: [DEFAULT_LABEL])
         print_project_issues(project, issues)
-        @stdout.puts "To contribute: gem-contribute fork-clone-branch #{project.gem_name}/<issue#>"
+        @stdout.puts "To contribute: gem-contribute fix #{project.gem_name}/<issue#>"
         0
       end
 
