@@ -38,7 +38,7 @@ gem-contribute submit                 # push, then open the PR compare page in y
 
 - **v0.1**: a CLI with `scan`, `issues`, `auth`, `fix`, `submit`, and `config`. GitHub-only.
 - **Planned**: a Rooibos TUI that does all of the above as a single keyboard-driven session ([issue #2](https://github.com/cdhagmann/gem-contribute/issues/2)).
-- **Workshop project**: built for [Blue Ridge Ruby 2026](https://blueridgeruby.com).
+- **Workshop project**: built for [Blue Ridge Ruby 2026](https://blueridgeruby.com). [Lightning talk slides →](talk/)
 
 ## Commands
 

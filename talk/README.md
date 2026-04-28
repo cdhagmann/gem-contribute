@@ -17,12 +17,16 @@ npm install -g @marp-team/marp-cli
 # preview live in browser
 marp --server talk/
 
+# publish to GitHub Pages (committed; appears at /talk/ on the docs site)
+marp talk/lightning.md --html -o docs/talk/index.html
+
 # export to PDF (recommended for the talk itself — survives wifi)
 marp talk/lightning.md --pdf -o talk/lightning.pdf
-
-# export to standalone HTML
-marp talk/lightning.md --html -o talk/lightning.html
 ```
+
+The HTML version under `docs/talk/index.html` is served via the docs
+site at <https://cdhagmann.com/gem-contribute/talk/>. Re-run the `--html`
+command and commit the changed file whenever the slides change.
 
 ## Speaker notes
 
