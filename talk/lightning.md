@@ -342,22 +342,25 @@ I'll watch the auto-merge fire on screen behind me.
 
 ---
 
-## What's next
+<!-- _class: title -->
 
-| Now | Soon |
-|---|---|
-| CLI works end-to-end | Rooibos TUI (`gem-contribute` no args) |
-| GitHub only | GitLab + others (host adapter pluggable) |
-| Single canonical label | `preferred_labels` config |
-| 1 contributor on the world map | Many |
+<!-- Speaker note: This is the takeaway. gem-contribute is the
+     example, not the lesson. Read slowly — one beat per line.
+     The audience should leave with this slide in their head, not
+     the install command. -->
+
+## Build what you cannot find.
 
 <br>
 
-```sh
-gem install gem-contribute
-```
+We can invent what does not exist.
+We can fix what others left to rot.
 
-<span class="small">Three good first issues open. Sandbox issue #5 always available.</span>
+<br>
+
+> Build for yourself first.
+> Help where you can.
+> The rest is bonus.
 
 ---
 
