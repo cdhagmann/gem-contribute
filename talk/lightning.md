@@ -164,22 +164,36 @@ Chris Hagmann · Blue Ridge Ruby 2026
 
 ---
 
-## What already exists
+## What's out there
 
-- **goodfirstissue.dev** · opt-in registry, sparse
-- **goodfirstissues.com** · opt-in registry, sparse
-- **github.com/topics/good-first-issue** · same opt-in problem
-- **forgoodfirstissue.github.com** · GitHub's own; curated, narrow
+- **goodfirstissue.dev** · opt-in registry · sparse
+- **goodfirstissues.com** · opt-in registry · sparse
+- **github.com/topics/good-first-issue** · opt-in topic · sparse
+- **forgoodfirstissue.github.com** · curated · narrow
 
 <br>
 
-They all answer:
+The inventories aren't sparse by accident — they're sparse because they're **opt-in.**
 
-> *"What's contributable **somewhere on GitHub**?"*
+<br>
 
-Nobody answers:
+Drop opt-in and the inventory becomes **everything on GitHub.**
 
-> *"What's contributable **in my Gemfile.lock**?"*
+Now you need a **heuristic.**
+
+---
+
+## `bundle fund` already chose
+
+When you give *money* to open source, you don't pick a project at random. You pick from your **lockfile** — the projects you've already bet on, with versions pinned, code you have context on.
+
+<br>
+
+That's the same logic, whether the unit is **dollars** or **hours**.
+
+<br>
+
+> `gem-contribute` is **`bundle fund` for time.**
 
 ---
 
