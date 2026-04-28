@@ -1,6 +1,6 @@
 title: gem-contribute
 description: Find contributable issues in the gems your project already depends on.
-url: https://cdhagmann.github.io/gem-contribute
+url: https://cdhagmann.com
 baseurl: /gem-contribute
 theme: jekyll-theme-cayman
 markdown: kramdown
