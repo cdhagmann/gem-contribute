@@ -353,11 +353,6 @@ I'll watch the auto-merge fire on screen behind me.
 
 <br>
 
-We can invent what does not exist.
-We can fix what others left to rot.
-
-<br>
-
 > Build for yourself first.
 > Help where you can.
 > The rest is bonus.
