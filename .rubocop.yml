@@ -1,4 +1,4 @@
-require:
+plugins:
   - rubocop-rake
   - rubocop-rspec
 
@@ -27,10 +27,18 @@ Metrics/BlockLength:
     - "Rakefile"
 
 Metrics/MethodLength:
-  Max: 15
+  Max: 20
 
 Metrics/AbcSize:
   Max: 20
+
+Metrics/ClassLength:
+  Max: 150
+
+Metrics/ParameterLists:
+  # CLI dispatcher classes accept ~8 collaborators (stdout/stderr/store/...),
+  # which is fine and explicit. Prefer named keyword args over a config bag.
+  Max: 8
 
 # We don't ship docstring-level docs; ADRs cover the why, code names cover
 # the what. Don't badger contributors for module-level YARD comments.
@@ -44,10 +52,16 @@ RSpec/ExampleLength:
   Max: 30
 
 RSpec/MultipleMemoizedHelpers:
-  Max: 8
+  Max: 10
 
 RSpec/DescribedClass:
   Enabled: true
 
 RSpec/NestedGroups:
   Max: 4
+
+# Integration specs hit live services and use string descriptions instead
+# of constant references; that's the point.
+RSpec/DescribeClass:
+  Exclude:
+    - "spec/integration/**/*"

@@ -7,6 +7,12 @@ require "tmpdir"
 require "vcr"
 require "webmock/rspec"
 
+# GemContribute::Auth::CLIENT_ID is read from this env var at module load
+# time. If it's unset when auth.rb autoloads, the constant freezes to the
+# placeholder sentinel and every later spec that exercises auth fails. Set
+# a benign test-only value before the autoload window opens.
+ENV["GEM_CONTRIBUTE_CLIENT_ID"] ||= "Iv1.testid"
+
 require "gem_contribute"
 
 VCR.configure do |config|
