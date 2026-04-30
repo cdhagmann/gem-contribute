@@ -11,6 +11,7 @@ module GemContribute
     autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
     autoload :Git, "gem_contribute/cli/fork_clone_branch"
     autoload :Submit, "gem_contribute/cli/submit"
+    autoload :RateLimitFooter, "gem_contribute/cli/rate_limit_footer"
     USAGE = <<~USAGE
       Usage: gem-contribute <command> [options]
 

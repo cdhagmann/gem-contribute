@@ -27,14 +27,18 @@ module GemContribute
         target = argv.shift
         return print_usage if target.nil?
 
-        if target == "all"
-          run_all
-        else
-          project = resolve_or_fail(target)
-          return 1 if project.nil?
-
-          list_issues(project)
-        end
+        status = if target == "all"
+                   run_all
+                 else
+                   project = resolve_or_fail(target)
+                   if project.nil?
+                     1
+                   else
+                     list_issues(project)
+                   end
+                 end
+        RateLimitFooter.print(adapter: @adapter, stdout: @stdout)
+        status
       rescue AdapterError => e
         @stderr.puts "gem-contribute: #{e.message}"
         1
