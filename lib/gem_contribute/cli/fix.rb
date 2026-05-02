@@ -40,7 +40,8 @@ module GemContribute
                      git: Git.new,
                      clone_root: DEFAULT_CLONE_ROOT,
                      sleeper: ->(s) { Kernel.sleep(s) },
-                     post_clone_hooks: nil)
+                     post_clone_hooks: nil,
+                     config: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
@@ -50,6 +51,7 @@ module GemContribute
         @clone_root = clone_root
         @sleeper = sleeper
         @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
+        @config = config || GemContribute::Config.new
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -78,12 +80,13 @@ module GemContribute
       private
 
       def parse_argv(argv)
-        flags = { editor: false, ai_tool: false }
+        flags = { editor: false, ai_tool: false, no_comment: false }
         positional = []
         argv.each do |arg|
           case arg
           when "-e", "--editor" then flags[:editor] = true
           when "-a", "--ai"     then flags[:ai_tool] = true
+          when "--no-comment"   then flags[:no_comment] = true
           else positional << arg
           end
         end
@@ -126,6 +129,7 @@ module GemContribute
 
       def execute(adapter, project, issue, flags)
         viewer = adapter.viewer_login
+        was_resuming = clone_exists?(project)
         clone_url = ensure_fork(adapter, project, viewer)
         local_path = clone_into_root(project, clone_url)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
@@ -136,8 +140,26 @@ module GemContribute
                         "https://github.com/#{project.owner}/#{project.repo}.git")
 
         print_summary(local_path, branch_name, project, viewer)
-        @post_clone_hooks.call(local_path, **flags)
+        announce_or_skip(adapter, project, issue, viewer, was_resuming: was_resuming, flags: flags)
+        @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
         0
+      end
+
+      def clone_exists?(project)
+        target = File.join(@clone_root, project.owner, project.repo)
+        File.directory?(File.join(target, ".git"))
+      end
+
+      def announce_or_skip(adapter, project, issue, viewer, was_resuming:, flags:)
+        return if flags[:no_comment]
+        return if was_resuming
+        return if viewer == project.owner
+        return unless @config.comment_on_fix?("#{project.owner}/#{project.repo}")
+
+        IssueAnnouncer.announce_working(
+          adapter: adapter, project: project, issue: issue,
+          stdout: @stdout, stderr: @stderr
+        )
       end
 
       def print_summary(local_path, branch_name, project, viewer)

@@ -13,6 +13,12 @@ module GemContribute
     #
     # `token` is optional and reserved for Stage 2; when present it's sent as
     # `Authorization: Bearer …` to lift the rate limit and unlock fork/etc.
+    #
+    # Class length: this adapter wraps a growing surface area of GitHub
+    # endpoints (issues, comments, forks, community profile, contents). The
+    # 150-line metric isn't a useful constraint here — we'd just split into
+    # arbitrary sub-modules — so it's disabled below with this rationale.
+    # rubocop:disable Metrics/ClassLength
     class GitHubAdapter < HostAdapter
       API_BASE = "https://api.github.com"
       ACCEPT = "application/vnd.github+json"
@@ -126,6 +132,27 @@ module GemContribute
         raise
       end
 
+      # POST /repos/:owner/:repo/issues/:n/comments. Returns the created
+      # comment payload (id, body, html_url, ...). Used by `fix` to post
+      # the "working on this" announcement.
+      def comment_on_issue(project, issue_number, body)
+        raise AuthRequired, "github.com" unless @token
+
+        ensure_known_host!(project)
+        post_json("/repos/#{project.owner}/#{project.repo}/issues/#{issue_number}/comments",
+                  { "body" => body })
+      end
+
+      # GET /repos/:owner/:repo/issues/:n/comments. Returns an array of
+      # comment payloads. Uncached (callers may want fresh data, e.g. to
+      # check for an idempotency marker).
+      def issue_comments(project, issue_number)
+        raise AuthRequired, "github.com" unless @token
+
+        ensure_known_host!(project)
+        get_json("/repos/#{project.owner}/#{project.repo}/issues/#{issue_number}/comments")
+      end
+
       private
 
       def issue_cache_key(project, labels)
@@ -211,5 +238,6 @@ module GemContribute
         )
       end
     end
+    # rubocop:enable Metrics/ClassLength
   end
 end
