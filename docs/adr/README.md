@@ -13,8 +13,9 @@ Format: [Michael Nygard's template](https://github.com/joelparkerhenderson/archi
 - [0005 — Render labels verbatim](0005-render-labels-verbatim.md)
 - [0006 — Ship as a standalone gem, not a Bundler plugin](0006-standalone-gem-not-plugin.md)
 - [0007 — Show CONTRIBUTING; don't parse it](0007-display-contributing-verbatim.md)
-- [0008 — Use Rooibos for the TUI layer](0008-rooibos-tui-framework.md)
+- [0008 — Use Rooibos for the TUI layer](0008-rooibos-tui-framework.md) — superseded by 0010
 - [0009 — Top-level namespace is `GemContribute`](0009-top-level-namespace.md)
+- [0010 — Use Charm-Ruby (bubbletea + lipgloss) for the TUI layer](0010-charm-ruby-tui-framework.md)
 
 ## When to add an ADR
 

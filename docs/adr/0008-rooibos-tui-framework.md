@@ -1,6 +1,6 @@
 # ADR 0008: Use Rooibos for the TUI layer
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0010](0010-charm-ruby-tui-framework.md)
 **Date:** 2026-04-27
 **Supersedes parts of:** the original "TUI built directly on `ratatui_ruby`" approach implied by ADR-0001 and the `docs/design.md` v1.
 
