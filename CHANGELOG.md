@@ -4,6 +4,21 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-02
+
+### Added
+
+- `gem-contribute init` — interactive first-run setup: prompts for `clone_root` and chains into `auth login` when no token is cached. Users who skip it can run each step separately at any time.
+- Rate-limit footer after `scan` and `issues` runs: `GitHub rate limit: 4,587 / 5,000 remaining · resets at 14:32 UTC`. Surfaced so users know whether a degraded run is seconds or minutes away from recovering (closes [#4](https://github.com/cdhagmann/gem-contribute/issues/4)).
+
+### Changed
+
+- `gem-contribute fix` now errors with an `init` hint when `clone_root` is not configured, instead of silently defaulting to `~/code/oss/`. Existing users with a configured `clone_root` are unaffected (closes [#15](https://github.com/cdhagmann/gem-contribute/issues/15)).
+
+### Fixed
+
+- `gem-contribute submit` no longer requires an `upstream` remote. When only `origin` is present (e.g. when dogfooding on your own repo), it treats `origin` as the upstream and emits a same-repo compare URL. The cross-fork path is unchanged for normal contributors.
+
 ## [0.1.0] - 2026-04-28
 
 ### Added
