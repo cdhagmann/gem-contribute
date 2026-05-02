@@ -16,6 +16,8 @@ module GemContribute
     # The shell-outs use Open3 with explicit args (not strings) to avoid any
     # shell-injection surface.
     class Fix
+      include Workflow
+
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
       BRANCH_PREFIX = "gem-contribute/issue-"
 
@@ -46,25 +48,21 @@ module GemContribute
       # rubocop:enable Metrics/ParameterLists
 
       def run(argv)
-        return missing_clone_root if @clone_root.nil?
+        with_workflow_rescues("fix") do
+          return missing_clone_root if @clone_root.nil?
 
-        target, flags = parse_argv(argv)
-        return print_usage_error if target.nil? || !target.include?("/")
+          target, flags = parse_argv(argv)
+          return print_usage_error if target.nil? || !target.include?("/")
 
-        gem_name, issue = target.split("/", 2)
-        adapter = build_adapter
-        return 1 if adapter.nil?
+          gem_name, issue = target.split("/", 2)
+          adapter = build_adapter
+          return 1 if adapter.nil?
 
-        project = resolve_or_fail(gem_name)
-        return 1 if project.nil?
+          project = resolve_target(gem_name, verb: "fix")
+          return 1 if project.nil?
 
-        execute(adapter, project, issue, flags)
-      rescue AuthRequired
-        @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
-        1
-      rescue AdapterError => e
-        @stderr.puts "fix failed: #{e.message}"
-        1
+          execute(adapter, project, issue, flags)
+        end
       end
 
       private
@@ -83,38 +81,9 @@ module GemContribute
         [positional.first, flags]
       end
 
-      def missing_clone_root
-        @stderr.puts "clone_root is not configured. Run `gem-contribute init` first."
-        1
-      end
-
       def print_usage_error
         @stderr.puts "Usage: gem-contribute fix <gem>/<issue#> [-e] [-a]"
         2
-      end
-
-      def build_adapter
-        token = @store.token_for("github.com")
-        if token.nil?
-          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
-          return nil
-        end
-        @adapter_factory.call(token: token)
-      end
-
-      def resolve_or_fail(gem_name)
-        return GemContribute::SELF_PROJECT if gem_name == GemContribute::SELF_PROJECT.gem_name
-
-        gem = LockedGem.new(name: gem_name, version: "*", source_type: :rubygems, source_uri: "https://rubygems.org/")
-        project = @resolver.resolve(gem)
-
-        if project.host != "github.com"
-          @stderr.puts "Cannot run `fix`: #{gem_name} resolves to #{project.host} " \
-                       "(only github.com is supported at v0.1)"
-          return nil
-        end
-
-        project
       end
 
       def execute(adapter, project, issue, flags)

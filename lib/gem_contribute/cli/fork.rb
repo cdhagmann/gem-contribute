@@ -10,6 +10,8 @@ module GemContribute
     # `gem-contribute fix <gem>/<issue>` is the issue-tied counterpart;
     # both compose the same `ForkClone` primitive.
     class Fork
+      include Workflow
+
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
 
       # rubocop:disable Metrics/ParameterLists
@@ -34,24 +36,20 @@ module GemContribute
       # rubocop:enable Metrics/ParameterLists
 
       def run(argv)
-        return missing_clone_root if @clone_root.nil?
+        with_workflow_rescues("fork") do
+          return missing_clone_root if @clone_root.nil?
 
-        target, flags = parse_argv(argv)
-        return print_usage_error if target.nil?
+          target, flags = parse_argv(argv)
+          return print_usage_error if target.nil?
 
-        adapter = build_adapter
-        return 1 if adapter.nil?
+          adapter = build_adapter
+          return 1 if adapter.nil?
 
-        project = resolve_or_fail(target)
-        return 1 if project.nil?
+          project = resolve_target(target, verb: "fork", allow_owner_repo: true)
+          return 1 if project.nil?
 
-        execute(adapter, project, flags)
-      rescue AuthRequired
-        @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
-        1
-      rescue AdapterError => e
-        @stderr.puts "fork failed: #{e.message}"
-        1
+          execute(adapter, project, flags)
+        end
       end
 
       private
@@ -69,50 +67,9 @@ module GemContribute
         [positional.first, flags]
       end
 
-      def missing_clone_root
-        @stderr.puts "clone_root is not configured. Run `gem-contribute init` first."
-        1
-      end
-
       def print_usage_error
         @stderr.puts "Usage: gem-contribute fork <gem|owner/repo> [-e] [-a]"
         2
-      end
-
-      def build_adapter
-        token = @store.token_for("github.com")
-        if token.nil?
-          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
-          return nil
-        end
-        @adapter_factory.call(token: token)
-      end
-
-      def resolve_or_fail(target)
-        # `owner/repo` form: skip RubyGems, treat as a direct GitHub
-        # reference so non-gem projects (e.g. `rubyevents/rubyevents`)
-        # work too.
-        if target.include?("/")
-          owner, repo = target.split("/", 2)
-          return GemContribute::Project.new(
-            gem_name: repo, host: "github.com",
-            owner: owner, repo: repo, metadata: {}
-          )
-        end
-
-        return GemContribute::SELF_PROJECT if target == GemContribute::SELF_PROJECT.gem_name
-
-        gem = LockedGem.new(name: target, version: "*",
-                            source_type: :rubygems, source_uri: "https://rubygems.org/")
-        project = @resolver.resolve(gem)
-
-        if project.host != "github.com"
-          @stderr.puts "Cannot run `fork`: #{target} resolves to #{project.host} " \
-                       "(only github.com is supported at v0.1)"
-          return nil
-        end
-
-        project
       end
 
       def execute(adapter, project, flags)

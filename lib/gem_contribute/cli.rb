@@ -13,6 +13,7 @@ module GemContribute
     autoload :Git, "gem_contribute/cli/fix"
     autoload :Fork, "gem_contribute/cli/fork"
     autoload :ForkClone, "gem_contribute/cli/fork_clone"
+    autoload :Workflow, "gem_contribute/cli/workflow"
     autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
     autoload :IssueAnnouncer, "gem_contribute/cli/issue_announcer"
     autoload :Submit, "gem_contribute/cli/submit"
