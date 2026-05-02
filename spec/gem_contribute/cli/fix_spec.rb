@@ -37,6 +37,7 @@ RSpec.describe GemContribute::CLI::Fix do
     allow(git).to receive(:clone)
     allow(git).to receive(:checkout_branch)
     allow(git).to receive(:add_remote)
+    allow(git).to receive(:branch_exists?).and_return(false)
     allow(GemContribute::CLI::IssueAnnouncer).to receive(:announce_working).and_return(:posted)
   end
 
@@ -192,12 +193,23 @@ RSpec.describe GemContribute::CLI::Fix do
       expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
     end
 
-    it "skips the announce when the local clone already exists" do
+    it "skips the announce when the issue's branch already exists locally (resuming)" do
       target = File.join(clone_root, "sidekiq", "sidekiq")
       FileUtils.mkdir_p(File.join(target, ".git"))
+      allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(true)
 
       expect(cli.run(["sidekiq/1234"])).to eq(0)
       expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+    end
+
+    it "announces when the clone exists but the branch for this issue is new" do
+      # User worked on issue 4 yesterday (clone exists), now starting issue 1234 fresh.
+      target = File.join(clone_root, "sidekiq", "sidekiq")
+      FileUtils.mkdir_p(File.join(target, ".git"))
+      allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(false)
+
+      expect(cli.run(["sidekiq/1234"])).to eq(0)
+      expect(GemContribute::CLI::IssueAnnouncer).to have_received(:announce_working)
     end
 
     it "skips the announce when the viewer owns the upstream" do
