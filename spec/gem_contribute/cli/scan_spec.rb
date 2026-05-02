@@ -130,10 +130,10 @@ RSpec.describe GemContribute::CLI::Scan do
 
   it "appends the GitHub rate-limit footer when adapter recorded one" do
     allow(resolver).to receive(:resolve).and_return(project("rake", owner: "ruby", repo: "rake"))
-    allow(adapter).to receive(:issues).and_return([{ "number" => 1 }])
-    allow(adapter).to receive(:rate_limit).and_return(
-      Struct.new(:limit, :remaining, :reset_at).new(5000, 4587, Time.utc(2026, 4, 30, 14, 32, 0))
-    )
+    allow(adapter).to receive_messages(issues: [{ "number" => 1 }],
+                                       rate_limit: Struct.new(:limit, :remaining, :reset_at).new(
+                                         5000, 4587, Time.utc(2026, 4, 30, 14, 32, 0)
+                                       ))
 
     expect(scan.run([lockfile])).to eq(0)
     expect(stdout.string).to include("GitHub rate limit: 4,587 / 5,000 remaining · resets at 14:32 UTC")
