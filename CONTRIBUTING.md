@@ -5,8 +5,9 @@ Thanks for considering a contribution. This project is *about* lowering the fric
 ## Quick start
 
 ```
-git clone https://github.com/cdhagmann/gem-contribute
-cd gem-contribute
+gem install gem-contribute
+gem-contribute auth login
+gem-contribute fix gem-contribute/issue-5
 bundle install
 bin/rspec               # tests should pass on a clean checkout
 bin/gem-contribute      # tool should run against this repo's own Gemfile.lock
@@ -21,14 +22,6 @@ bin/gem-contribute      # tool should run against this repo's own Gemfile.lock
 - Performance improvements with before/after numbers
 - Accessibility improvements to the TUI (color contrast, keyboard-only flows, screen-reader compatibility)
 
-## What we'd push back on
-
-- Label normalization (see [ADR-0005](docs/adr/0005-render-labels-verbatim.md))
-- Parsing CONTRIBUTING.md for structured data (see [ADR-0007](docs/adr/0007-display-contributing-verbatim.md))
-- AI-anything that summarizes, suggests, or rewrites maintainer-authored content
-- Bundler plugin packaging (see [ADR-0006](docs/adr/0006-standalone-gem-not-plugin.md)) — we'll consider it later, just not now
-
-If you have a strong case for any of the above, open an issue first and let's talk before you write code.
 
 ## PR expectations
 
@@ -39,7 +32,7 @@ If you have a strong case for any of the above, open an issue first and let's ta
 
 ## Code of Conduct
 
-Be kind. Assume good faith. The Ruby community deserves both. Specific incidents go to chris@example.com (placeholder — TODO: update before merging this).
+Be kind. Assume good faith. The Ruby community deserves both. The full text — adapted from [Contributor Covenant 3.0](https://www.contributor-covenant.org/version/3/0/) — lives in [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Specific incidents go to gem.contribute@cdhagmann.com.
 
 ## AI assistance
 

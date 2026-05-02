@@ -1,0 +1,1 @@
+ - Make sure it respects PR templates
