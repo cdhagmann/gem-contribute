@@ -50,9 +50,11 @@ RSpec.describe GemContribute::CLI::Config do
   end
 
   describe "list" do
-    it "prints the effective clone_root" do
+    it "prints all known keys" do
       expect(cli.run(["list"])).to eq(0)
       expect(stdout.string).to include("clone_root")
+      expect(stdout.string).to include("editor")
+      expect(stdout.string).to include("ai_tool")
     end
   end
 

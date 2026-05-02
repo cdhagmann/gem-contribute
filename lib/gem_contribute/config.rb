@@ -8,7 +8,7 @@ module GemContribute
   # Honors XDG_CONFIG_HOME so tests stay hermetic and unusual layouts work.
   # Missing or corrupt files are treated as an empty config (no crash).
   class Config
-    KNOWN_KEYS = %w[clone_root].freeze
+    KNOWN_KEYS = %w[clone_root editor ai_tool].freeze
 
     def initialize(path: self.class.default_path)
       @path = path
@@ -18,6 +18,14 @@ module GemContribute
     def clone_root
       raw = @data["clone_root"]
       raw ? File.expand_path(raw) : nil
+    end
+
+    def editor
+      @data["editor"]
+    end
+
+    def ai_tool
+      @data["ai_tool"]
     end
 
     def set(key, value)

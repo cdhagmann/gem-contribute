@@ -23,6 +23,28 @@ RSpec.describe GemContribute::Config do
     end
   end
 
+  describe "#editor" do
+    it "returns nil when not set" do
+      expect(config.editor).to be_nil
+    end
+
+    it "returns the configured value" do
+      File.write(path, YAML.dump("editor" => "code"))
+      expect(config.editor).to eq("code")
+    end
+  end
+
+  describe "#ai_tool" do
+    it "returns nil when not set" do
+      expect(config.ai_tool).to be_nil
+    end
+
+    it "returns the configured value" do
+      File.write(path, YAML.dump("ai_tool" => "claude ."))
+      expect(config.ai_tool).to eq("claude .")
+    end
+  end
+
   describe "#set" do
     it "writes the value and makes it readable" do
       config.set("clone_root", "~/code/gems")

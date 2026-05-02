@@ -11,6 +11,7 @@ module GemContribute
     autoload :Issues, "gem_contribute/cli/issues"
     autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
     autoload :Git, "gem_contribute/cli/fork_clone_branch"
+    autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
     autoload :Submit, "gem_contribute/cli/submit"
     autoload :RateLimitFooter, "gem_contribute/cli/rate_limit_footer"
     USAGE = <<~USAGE
@@ -28,6 +29,7 @@ module GemContribute
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
+                                 Add -e to open your editor, -a to launch your AI tool.
                                  (alias: fork-clone-branch)
         submit                   Push the current branch and open a pre-filled
                                  PR compare page in the browser. Run from inside
