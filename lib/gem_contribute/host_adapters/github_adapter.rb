@@ -153,6 +153,21 @@ module GemContribute
         get_json("/repos/#{project.owner}/#{project.repo}/issues/#{issue_number}/comments")
       end
 
+      # GET /search/issues. Wraps GitHub's issue search; works without auth
+      # (subject to the 60/hr anonymous rate limit). Returns an array of
+      # issue payloads (the search response's `items` key). Cached under the
+      # `issues` namespace using the query as the key. Used to find issues
+      # already claimed via the gem-contribute marker.
+      def search_issues(query)
+        cache_key = "search:#{query}"
+        cached = @cache.fetch("issues", cache_key)
+        return cached if cached
+
+        raw = get_json("/search/issues", q: query)
+        items = raw.fetch("items", [])
+        @cache.write("issues", cache_key, items)
+      end
+
       private
 
       def issue_cache_key(project, labels)

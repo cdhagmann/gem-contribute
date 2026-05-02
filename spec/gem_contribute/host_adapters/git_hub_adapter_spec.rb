@@ -191,6 +191,36 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
     end
   end
 
+  describe "#search_issues" do
+    it "GETs /search/issues with the q param and returns the items array" do
+      stub_request(:get, "https://api.github.com/search/issues")
+        .with(query: { "q" => "\"<!-- gem-contribute:working v1 -->\"" })
+        .to_return(
+          status: 200,
+          headers: { "Content-Type" => "application/json" },
+          body: JSON.dump("total_count" => 1,
+                          "items" => [{ "number" => 7,
+                                        "html_url" => "https://github.com/sidekiq/sidekiq/issues/7" }])
+        )
+
+      items = adapter.search_issues("\"<!-- gem-contribute:working v1 -->\"")
+      expect(items.size).to eq(1)
+      expect(items.first["number"]).to eq(7)
+    end
+
+    it "caches the result by query so repeat calls don't re-hit the API" do
+      stub_request(:get, "https://api.github.com/search/issues")
+        .with(query: { "q" => "anything" })
+        .to_return(status: 200,
+                   headers: { "Content-Type" => "application/json" },
+                   body: JSON.dump("items" => []))
+
+      adapter.search_issues("anything")
+      adapter.search_issues("anything")
+      expect(WebMock).to have_requested(:get, %r{api\.github\.com/search/issues}).once
+    end
+  end
+
   describe "non-200 from a public endpoint" do
     it "raises AdapterError with the status" do
       stub_request(:get, %r{api\.github\.com/repos/sidekiq/sidekiq/issues})

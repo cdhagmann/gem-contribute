@@ -14,7 +14,37 @@ RSpec.describe GemContribute::CLI::Scan do
   # Default: every adapter mock returns nil from rate_limit so the
   # post-scan footer is a no-op. Tests that exercise the footer
   # explicitly override this.
-  before { allow(adapter).to receive(:rate_limit).and_return(nil) }
+  before do
+    allow(adapter).to receive(:rate_limit).and_return(nil)
+    # Default: no claimed issues. Tests that exercise the suffix override.
+    allow(GemContribute::CLI::IssueAnnouncer).to receive(:fetch_claim_index).and_return({})
+  end
+
+  it "appends a `· N claimed` suffix when the project has claimed issues" do
+    allow(resolver).to receive(:resolve) do |gem|
+      project(gem.name) if gem.name == "rubocop"
+    end
+    allow(adapter).to receive(:issues).and_return([{ "number" => 1 }, { "number" => 2 }])
+    allow(GemContribute::CLI::IssueAnnouncer).to receive(:fetch_claim_index)
+      .and_return("ruby/rubocop" => [1])
+
+    rubocop_only = File.join(fixtures, "Gemfile.rubocop_only.lock")
+    File.write(rubocop_only, <<~LOCKFILE)
+      GEM
+        remote: https://rubygems.org/
+        specs:
+          rubocop (1.0.0)
+
+      PLATFORMS
+        ruby
+
+      DEPENDENCIES
+        rubocop
+    LOCKFILE
+    expect(scan.run([rubocop_only])).to eq(0)
+    expect(stdout.string).to include("· 1 claimed")
+    File.delete(rubocop_only)
+  end
 
   def project(gem_name, host: "github.com", owner: "ruby", repo: nil)
     GemContribute::Project.new(

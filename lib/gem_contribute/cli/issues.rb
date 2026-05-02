@@ -27,6 +27,8 @@ module GemContribute
         target = argv.shift
         return print_usage if target.nil?
 
+        @claim_index = IssueAnnouncer.fetch_claim_index(@adapter)
+
         status = if target == "all"
                    run_all
                  else
@@ -115,11 +117,17 @@ module GemContribute
           @stdout.puts "  (none — browse #{repo_url}/issues directly)"
         else
           @stdout.puts
-          issues.each do |issue|
-            @stdout.puts "  ##{issue["number"]}  #{issue["title"]}"
-            @stdout.puts "        #{issue["html_url"]}"
-            @stdout.puts
-          end
+          print_issue_list(project, issues)
+        end
+      end
+
+      def print_issue_list(project, issues)
+        claimed = @claim_index["#{project.owner}/#{project.repo}"] || []
+        issues.each do |issue|
+          label = claimed.include?(issue["number"]) ? "[claimed] " : ""
+          @stdout.puts "  ##{issue["number"]}  #{label}#{issue["title"]}"
+          @stdout.puts "        #{issue["html_url"]}"
+          @stdout.puts
         end
       end
     end
