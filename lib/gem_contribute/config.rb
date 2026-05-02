@@ -8,8 +8,6 @@ module GemContribute
   # Honors XDG_CONFIG_HOME so tests stay hermetic and unusual layouts work.
   # Missing or corrupt files are treated as an empty config (no crash).
   class Config
-    DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
-
     KNOWN_KEYS = %w[clone_root].freeze
 
     def initialize(path: self.class.default_path)
@@ -19,7 +17,7 @@ module GemContribute
 
     def clone_root
       raw = @data["clone_root"]
-      raw ? File.expand_path(raw) : DEFAULT_CLONE_ROOT
+      raw ? File.expand_path(raw) : nil
     end
 
     def set(key, value)
