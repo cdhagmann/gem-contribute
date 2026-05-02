@@ -91,5 +91,18 @@ RSpec.describe GemContribute::CLI::Fork do
     expect(cli.run(["sidekiq", "-e", "-a"])).to eq(0)
     expect(post_clone_hooks).to have_received(:call).with(target_path, editor: true, ai_tool: true)
   end
+
+  it "accepts owner/repo form and skips RubyGems resolution" do
+    allow(adapter).to receive(:viewer_login).and_return("alice")
+    allow(fork_clone).to receive(:call).and_return(File.join(clone_root, "rubyevents", "rubyevents"))
+
+    expect(cli.run(["rubyevents/rubyevents"])).to eq(0)
+    expect(resolver).not_to have_received(:resolve)
+    expect(fork_clone).to have_received(:call).with(
+      adapter,
+      have_attributes(owner: "rubyevents", repo: "rubyevents", host: "github.com"),
+      "alice"
+    )
+  end
 end
 # rubocop:enable RSpec/MultipleMemoizedHelpers

@@ -75,7 +75,7 @@ module GemContribute
       end
 
       def print_usage_error
-        @stderr.puts "Usage: gem-contribute fork <gem> [-e] [-a]"
+        @stderr.puts "Usage: gem-contribute fork <gem|owner/repo> [-e] [-a]"
         2
       end
 
@@ -88,15 +88,26 @@ module GemContribute
         @adapter_factory.call(token: token)
       end
 
-      def resolve_or_fail(gem_name)
-        return GemContribute::SELF_PROJECT if gem_name == GemContribute::SELF_PROJECT.gem_name
+      def resolve_or_fail(target)
+        # `owner/repo` form: skip RubyGems, treat as a direct GitHub
+        # reference so non-gem projects (e.g. `rubyevents/rubyevents`)
+        # work too.
+        if target.include?("/")
+          owner, repo = target.split("/", 2)
+          return GemContribute::Project.new(
+            gem_name: repo, host: "github.com",
+            owner: owner, repo: repo, metadata: {}
+          )
+        end
 
-        gem = LockedGem.new(name: gem_name, version: "*",
+        return GemContribute::SELF_PROJECT if target == GemContribute::SELF_PROJECT.gem_name
+
+        gem = LockedGem.new(name: target, version: "*",
                             source_type: :rubygems, source_uri: "https://rubygems.org/")
         project = @resolver.resolve(gem)
 
         if project.host != "github.com"
-          @stderr.puts "Cannot run `fork`: #{gem_name} resolves to #{project.host} " \
+          @stderr.puts "Cannot run `fork`: #{target} resolves to #{project.host} " \
                        "(only github.com is supported at v0.1)"
           return nil
         end

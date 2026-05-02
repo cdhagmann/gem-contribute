@@ -31,9 +31,10 @@ module GemContribute
         auth login               Authenticate with GitHub via OAuth device flow.
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
-        fork <gem>               Fork the gem's repo, clone the fork, leave you on
-                                 the default branch (no issue branch). Use when you
-                                 want to look around before picking an issue.
+        fork <gem|owner/repo>    Fork (and clone) any GitHub repo. Pass a gem name
+                                 to look it up on RubyGems, or `owner/repo` for any
+                                 GitHub project (e.g. `rubyevents/rubyevents`).
+                                 Lands on the default branch.
                                  Flags: -e (editor), -a (AI tool).
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
                                  Flags: -e (editor), -a (AI tool), --no-comment.

@@ -41,7 +41,8 @@ gem-contribute init                   One-time interactive setup (sets clone_roo
 gem-contribute scan [path]            Summarize the contributable surface of a Gemfile.lock.
 gem-contribute issues <gem|all>       List "good first issue" issues for one gem (or all).
 gem-contribute auth login             Authenticate with GitHub via OAuth device flow.
-gem-contribute fix <gem>/<issue#>     Fork the gem's repo, clone the fork, branch from main.
+gem-contribute fork <gem|owner/repo>  Fork and clone any GitHub repo, land on the default branch.
+gem-contribute fix <gem>/<issue#>     Fork, clone, and branch from main for a specific issue.
 gem-contribute submit                 Push the branch and open a pre-filled PR in the browser.
 gem-contribute config set <key> <val> Persist user preferences (e.g. clone_root).
 ```
@@ -57,6 +58,15 @@ $ cd ~/code/oss/rubocop/rubocop          # whatever clone_root you set during in
 # ... make your change, commit ...
 $ gem-contribute submit                  # push + open the PR compare page in your browser
 ```
+
+Or, when you want to look around a project before picking an issue, use `fork`:
+
+```sh
+$ gem-contribute fork rubocop                       # fork-and-clone a gem by name
+$ gem-contribute fork rubyevents/rubyevents -e      # fork-and-clone any GitHub repo and open your editor
+```
+
+`fork` does the same fork-clone-upstream sequence as `fix` but stops on the default branch — no issue branch, no comment. Handy for "build it locally and decide what to fix later." When you've picked an issue, `gem-contribute fix <gem>/<issue#>` branches off cleanly.
 
 The auth step (run automatically by `init`, or directly via `gem-contribute auth login`) opens GitHub's device-flow page in your browser and copies the one-time code to your clipboard — same UX as `gh auth login`, no token paste, no client secret. Tokens cache at `~/.config/gem-contribute/auth.json` (mode 0600).
 
