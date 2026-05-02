@@ -156,20 +156,20 @@ RSpec.describe GemContribute::CLI::Issues do
 
   describe "rate-limit footer" do
     it "appends the footer after `issues <gem>` when adapter recorded one" do
-      allow(adapter).to receive(:issues).and_return([issue(1, "x")])
-      allow(adapter).to receive(:rate_limit).and_return(
-        Struct.new(:limit, :remaining, :reset_at).new(5000, 4587, Time.utc(2026, 4, 30, 14, 32, 0))
-      )
+      allow(adapter).to receive_messages(issues: [issue(1, "x")],
+                                         rate_limit: Struct.new(:limit, :remaining, :reset_at).new(
+                                           5000, 4587, Time.utc(2026, 4, 30, 14, 32, 0)
+                                         ))
 
       expect(cli.run(["rubocop"])).to eq(0)
       expect(stdout.string).to include("GitHub rate limit: 4,587 / 5,000 remaining · resets at 14:32 UTC")
     end
 
     it "appends the footer after `issues all` when adapter recorded one" do
-      allow(adapter).to receive(:issues).and_return([])
-      allow(adapter).to receive(:rate_limit).and_return(
-        Struct.new(:limit, :remaining, :reset_at).new(60, 12, Time.utc(2026, 4, 30, 9, 5, 0))
-      )
+      allow(adapter).to receive_messages(issues: [],
+                                         rate_limit: Struct.new(:limit, :remaining, :reset_at).new(
+                                           60, 12, Time.utc(2026, 4, 30, 9, 5, 0)
+                                         ))
 
       expect(cli.run(["all"])).to eq(0)
       expect(stdout.string).to include("GitHub rate limit: 12 / 60 remaining · resets at 09:05 UTC")

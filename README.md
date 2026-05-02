@@ -1,5 +1,7 @@
 # gem-contribute
 
+[![CI](https://github.com/cdhagmann/gem-contribute/actions/workflows/ci.yml/badge.svg)](https://github.com/cdhagmann/gem-contribute/actions/workflows/ci.yml)
+
 Find contributable issues in the gems your project already depends on.
 
 ```
