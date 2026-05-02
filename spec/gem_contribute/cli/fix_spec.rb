@@ -2,6 +2,7 @@
 
 require "stringio"
 
+# rubocop:disable RSpec/MultipleMemoizedHelpers
 RSpec.describe GemContribute::CLI::Fix do
   let(:stdout) { StringIO.new }
   let(:stderr) { StringIO.new }
@@ -11,13 +12,15 @@ RSpec.describe GemContribute::CLI::Fix do
   let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }
   let(:git) { instance_double(GemContribute::CLI::Git) }
   let(:clone_root) { File.join(tmpdir, "code", "oss") }
+  let(:config) { GemContribute::Config.new(path: File.join(tmpdir, "config.yml")) }
   let(:cli) do
     described_class.new(
       stdout: stdout, stderr: stderr,
       resolver: resolver, store: store,
       adapter_factory: ->(**) { adapter },
       git: git, clone_root: clone_root,
-      sleeper: ->(_s) {}
+      sleeper: ->(_s) {},
+      config: config
     )
   end
 
@@ -34,6 +37,8 @@ RSpec.describe GemContribute::CLI::Fix do
     allow(git).to receive(:clone)
     allow(git).to receive(:checkout_branch)
     allow(git).to receive(:add_remote)
+    allow(git).to receive(:branch_exists?).and_return(false)
+    allow(GemContribute::CLI::IssueAnnouncer).to receive(:announce_working).and_return(:posted)
   end
 
   after { FileUtils.rm_rf(tmpdir) }
@@ -134,7 +139,6 @@ RSpec.describe GemContribute::CLI::Fix do
     expect(stderr.string).to include("fork not reachable")
   end
 
-  # rubocop:disable RSpec/MultipleMemoizedHelpers
   describe "with -e and -a flags" do
     let(:hooks) { instance_double(GemContribute::CLI::PostCloneHooks, call: nil) }
     let(:cli_with_hooks) do
@@ -144,7 +148,8 @@ RSpec.describe GemContribute::CLI::Fix do
         adapter_factory: ->(**) { adapter },
         git: git, clone_root: clone_root,
         sleeper: ->(_s) {},
-        post_clone_hooks: hooks
+        post_clone_hooks: hooks,
+        config: config
       )
     end
     let(:target_path) { File.join(clone_root, "sidekiq", "sidekiq") }
@@ -167,6 +172,78 @@ RSpec.describe GemContribute::CLI::Fix do
     it "calls hooks with both flags false when neither flag is given" do
       expect(cli_with_hooks.run(["sidekiq/1"])).to eq(0)
       expect(hooks).to have_received(:call).with(target_path, editor: false, ai_tool: false)
+    end
+  end
+
+  describe "issue comment integration" do
+    before do
+      allow(adapter).to receive(:viewer_login).and_return("alice")
+      allow(adapter).to receive(:already_forked?).with(project).and_return(true)
+    end
+
+    it "announces working on the issue by default" do
+      expect(cli.run(["sidekiq/1234"])).to eq(0)
+      expect(GemContribute::CLI::IssueAnnouncer).to have_received(:announce_working)
+        .with(adapter: adapter, project: project, issue: "1234",
+              stdout: stdout, stderr: stderr)
+    end
+
+    it "skips the announce when --no-comment is passed" do
+      expect(cli.run(["sidekiq/1234", "--no-comment"])).to eq(0)
+      expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+    end
+
+    it "skips the announce when the issue's branch already exists locally (resuming)" do
+      target = File.join(clone_root, "sidekiq", "sidekiq")
+      FileUtils.mkdir_p(File.join(target, ".git"))
+      allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(true)
+
+      expect(cli.run(["sidekiq/1234"])).to eq(0)
+      expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+    end
+
+    it "announces when the clone exists but the branch for this issue is new" do
+      # User worked on issue 4 yesterday (clone exists), now starting issue 1234 fresh.
+      target = File.join(clone_root, "sidekiq", "sidekiq")
+      FileUtils.mkdir_p(File.join(target, ".git"))
+      allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(false)
+
+      expect(cli.run(["sidekiq/1234"])).to eq(0)
+      expect(GemContribute::CLI::IssueAnnouncer).to have_received(:announce_working)
+    end
+
+    it "skips the announce when the viewer owns the upstream" do
+      owned = GemContribute::Project.new(
+        gem_name: "rubocop", host: "github.com",
+        owner: "alice", repo: "rubocop", metadata: {}
+      )
+      allow(resolver).to receive(:resolve).and_return(owned)
+      allow(adapter).to receive(:already_forked?).with(owned).and_return(true)
+
+      expect(cli.run(["rubocop/1234"])).to eq(0)
+      expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+    end
+
+    context "when comment_on_fix is false in config" do
+      before { config.set("comment_on_fix", "false") }
+
+      it "skips the announce" do
+        expect(cli.run(["sidekiq/1234"])).to eq(0)
+        expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+      end
+    end
+
+    context "when a per-repo override turns it off" do
+      before do
+        File.write(File.join(tmpdir, "config.yml"),
+                   YAML.dump("comment_on_fix" => true,
+                             "comment_on_fix_overrides" => { "sidekiq/sidekiq" => false }))
+      end
+
+      it "skips the announce" do
+        expect(cli.run(["sidekiq/1234"])).to eq(0)
+        expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+      end
     end
   end
   # rubocop:enable RSpec/MultipleMemoizedHelpers

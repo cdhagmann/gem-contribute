@@ -30,9 +30,13 @@ RSpec.describe GemContribute::CLI::Issues do
     }
   end
 
-  before { allow(resolver).to receive(:resolve).and_return(project) }
-  # Default: footer is a no-op unless a test explicitly returns a RateLimit.
-  before { allow(adapter).to receive(:rate_limit).and_return(nil) }
+  before do
+    allow(resolver).to receive(:resolve).and_return(project)
+    # Default: footer is a no-op unless a test explicitly returns a RateLimit.
+    allow(adapter).to receive(:rate_limit).and_return(nil)
+    # Default: no claimed issues. Tests that exercise the prefix override.
+    allow(GemContribute::CLI::IssueAnnouncer).to receive(:fetch_claim_index).and_return({})
+  end
 
   it "exits 2 with usage when no gem name is given" do
     expect(cli.run([])).to eq(2)
@@ -47,6 +51,19 @@ RSpec.describe GemContribute::CLI::Issues do
 
     expect(cli.run(["internal"])).to eq(1)
     expect(stderr.string).to include("only github.com is supported")
+  end
+
+  it "prefixes claimed issues with a [claimed] label" do
+    allow(adapter).to receive(:issues).and_return(
+      [issue(1234, "Fresh title"), issue(5678, "Already-being-worked-on")]
+    )
+    allow(GemContribute::CLI::IssueAnnouncer).to receive(:fetch_claim_index)
+      .and_return("rubocop/rubocop" => [5678])
+
+    expect(cli.run(["rubocop"])).to eq(0)
+    out = stdout.string
+    expect(out).to match(/#1234  Fresh title/)
+    expect(out).to match(/#5678  \[claimed\] Already-being-worked-on/)
   end
 
   it "lists issues with number, title, and URL" do

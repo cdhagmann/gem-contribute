@@ -66,7 +66,8 @@ module GemContribute
         ranked = rank_by_issue_count(inject_self(github_from_lockfile))
         return if ranked.empty?
 
-        print_ranked(ranked)
+        claim_index = IssueAnnouncer.fetch_claim_index(@adapter)
+        print_ranked(ranked, claim_index)
       end
 
       def tally_hosts(projects)
@@ -104,13 +105,15 @@ module GemContribute
         0
       end
 
-      def print_ranked(ranked)
+      def print_ranked(ranked, claim_index)
         @stdout.puts
         @stdout.puts "Top contributable projects (by open `good first issue` count):"
         col_name = ranked.map { |p, _| p.gem_name.length }.max
         ranked.each do |project, count|
           location = "#{project.host}/#{project.owner}/#{project.repo}"
-          @stdout.printf("  %-#{col_name}s  %3d  %s\n", project.gem_name, count, location)
+          claimed = claim_index["#{project.owner}/#{project.repo}"] || []
+          suffix = claimed.empty? ? "" : "  · #{claimed.size} claimed"
+          @stdout.printf("  %-#{col_name}s  %3d  %s%s\n", project.gem_name, count, location, suffix)
         end
       end
     end

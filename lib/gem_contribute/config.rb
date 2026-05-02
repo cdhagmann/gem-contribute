@@ -8,7 +8,7 @@ module GemContribute
   # Honors XDG_CONFIG_HOME so tests stay hermetic and unusual layouts work.
   # Missing or corrupt files are treated as an empty config (no crash).
   class Config
-    KNOWN_KEYS = %w[clone_root editor ai_tool].freeze
+    KNOWN_KEYS = %w[clone_root editor ai_tool comment_on_fix].freeze
 
     def initialize(path: self.class.default_path)
       @path = path
@@ -26,6 +26,17 @@ module GemContribute
 
     def ai_tool
       @data["ai_tool"]
+    end
+
+    # Returns whether `fix` should post a "working on this" comment.
+    # Pass a repo (`"owner/repo"`) to check the per-repo override; without
+    # a repo, returns the global default. Default is true when unset.
+    def comment_on_fix?(repo = nil)
+      overrides = @data["comment_on_fix_overrides"]
+      return truthy?(overrides[repo]) if repo && overrides.is_a?(Hash) && overrides.key?(repo)
+
+      raw = @data["comment_on_fix"]
+      raw.nil? || truthy?(raw)
     end
 
     def set(key, value)
@@ -46,6 +57,13 @@ module GemContribute
     end
 
     private
+
+    def truthy?(value)
+      case value
+      when true, false then value
+      else value.to_s.downcase != "false"
+      end
+    end
 
     def load_file
       return {} unless File.exist?(@path)

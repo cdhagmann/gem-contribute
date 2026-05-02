@@ -25,6 +25,9 @@ module GemContribute
                                Example: gem-contribute config set editor code
           ai_tool              Shell command for `fix -a` (run in clone dir).
                                Example: gem-contribute config set ai_tool "claude ."
+          comment_on_fix       Whether `fix` posts a "working on this" comment.
+                               Default: true. Per-repo overrides via
+                               `comment_on_fix_overrides` in the YAML.
       USAGE
 
       def initialize(stdout: $stdout, stderr: $stderr, config: GemContribute::Config.new)
@@ -87,6 +90,12 @@ module GemContribute
         @stdout.puts "  clone_root = #{@config.clone_root || "(not set; run `gem-contribute init`)"}"
         @stdout.puts "  editor = #{@config.editor || "(not set)"}"
         @stdout.puts "  ai_tool = #{@config.ai_tool || "(not set)"}"
+        @stdout.puts "  comment_on_fix = #{@config.comment_on_fix?}"
+        overrides = @config.to_h["comment_on_fix_overrides"]
+        if overrides.is_a?(Hash) && !overrides.empty?
+          @stdout.puts "  comment_on_fix_overrides:"
+          overrides.each { |repo, val| @stdout.puts "    #{repo}: #{val}" }
+        end
         0
       end
     end

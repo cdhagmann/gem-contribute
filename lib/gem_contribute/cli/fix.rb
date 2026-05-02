@@ -25,6 +25,11 @@ module GemContribute
     #
     # The shell-outs use Open3 with explicit args (not strings) to avoid any
     # shell-injection surface.
+    #
+    # Class length: this is the v0.1 fix-flow state machine. Splitting it
+    # into pieces would just create arbitrary sub-modules without making
+    # the flow easier to follow. Disabled here with rationale.
+    # rubocop:disable Metrics/ClassLength
     class Fix
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
       BRANCH_PREFIX = "gem-contribute/issue-"
@@ -40,7 +45,8 @@ module GemContribute
                      git: Git.new,
                      clone_root: DEFAULT_CLONE_ROOT,
                      sleeper: ->(s) { Kernel.sleep(s) },
-                     post_clone_hooks: nil)
+                     post_clone_hooks: nil,
+                     config: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
@@ -50,6 +56,7 @@ module GemContribute
         @clone_root = clone_root
         @sleeper = sleeper
         @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
+        @config = config || GemContribute::Config.new
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -78,12 +85,13 @@ module GemContribute
       private
 
       def parse_argv(argv)
-        flags = { editor: false, ai_tool: false }
+        flags = { editor: false, ai_tool: false, no_comment: false }
         positional = []
         argv.each do |arg|
           case arg
           when "-e", "--editor" then flags[:editor] = true
           when "-a", "--ai"     then flags[:ai_tool] = true
+          when "--no-comment"   then flags[:no_comment] = true
           else positional << arg
           end
         end
@@ -126,6 +134,7 @@ module GemContribute
 
       def execute(adapter, project, issue, flags)
         viewer = adapter.viewer_login
+        was_resuming = branch_exists_locally?(project, issue)
         clone_url = ensure_fork(adapter, project, viewer)
         local_path = clone_into_root(project, clone_url)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
@@ -136,8 +145,31 @@ module GemContribute
                         "https://github.com/#{project.owner}/#{project.repo}.git")
 
         print_summary(local_path, branch_name, project, viewer)
-        @post_clone_hooks.call(local_path, **flags)
+        announce_or_skip(adapter, project, issue, viewer, was_resuming: was_resuming, flags: flags)
+        @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
         0
+      end
+
+      # True if `gem-contribute/issue-<N>` already exists locally — the
+      # user is resuming this specific issue (the clone is shared across
+      # issues in the same repo, but the branch is per-issue).
+      def branch_exists_locally?(project, issue)
+        target = File.join(@clone_root, project.owner, project.repo)
+        return false unless File.directory?(File.join(target, ".git"))
+
+        @git.branch_exists?(target, "#{BRANCH_PREFIX}#{issue}")
+      end
+
+      def announce_or_skip(adapter, project, issue, viewer, was_resuming:, flags:)
+        return if flags[:no_comment]
+        return if was_resuming
+        return if viewer == project.owner
+        return unless @config.comment_on_fix?("#{project.owner}/#{project.repo}")
+
+        IssueAnnouncer.announce_working(
+          adapter: adapter, project: project, issue: issue,
+          stdout: @stdout, stderr: @stderr
+        )
       end
 
       def print_summary(local_path, branch_name, project, viewer)
@@ -188,6 +220,8 @@ module GemContribute
       end
     end
 
+    # rubocop:enable Metrics/ClassLength
+
     # Thin wrapper around git so the spec can swap in a fake without shelling
     # out. The real implementation uses Open3 with arg-list invocation — no
     # shell, so no injection surface.
@@ -215,6 +249,13 @@ module GemContribute
       def remote_exists?(path, name)
         out, _err, status = Open3.capture3("git", "-C", path, "remote")
         status.success? && out.split("\n").include?(name)
+      end
+
+      def branch_exists?(path, branch)
+        _out, _err, status = Open3.capture3("git", "-C", path,
+                                            "rev-parse", "--verify", "--quiet",
+                                            "refs/heads/#{branch}")
+        status.success?
       end
 
       def run!(argv)

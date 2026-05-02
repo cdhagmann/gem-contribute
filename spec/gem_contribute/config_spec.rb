@@ -45,6 +45,42 @@ RSpec.describe GemContribute::Config do
     end
   end
 
+  describe "#comment_on_fix?" do
+    it "defaults to true when not set" do
+      expect(config.comment_on_fix?).to be(true)
+    end
+
+    it "returns the configured boolean" do
+      File.write(path, YAML.dump("comment_on_fix" => false))
+      expect(config.comment_on_fix?).to be(false)
+    end
+
+    it "coerces a string 'false' to false" do
+      File.write(path, YAML.dump("comment_on_fix" => "false"))
+      expect(config.comment_on_fix?).to be(false)
+    end
+
+    context "with a repo argument" do
+      it "returns the global default when no override is set" do
+        expect(config.comment_on_fix?("rubocop/rubocop")).to be(true)
+      end
+
+      it "returns the per-repo override when present" do
+        File.write(path, YAML.dump("comment_on_fix" => true,
+                                   "comment_on_fix_overrides" => { "rubocop/rubocop" => false }))
+        expect(config.comment_on_fix?("rubocop/rubocop")).to be(false)
+        expect(config.comment_on_fix?("rspec/rspec")).to be(true)
+      end
+
+      it "honours the per-repo override even when the global default is off" do
+        File.write(path, YAML.dump("comment_on_fix" => false,
+                                   "comment_on_fix_overrides" => { "cdhagmann/gem-contribute" => true }))
+        expect(config.comment_on_fix?("cdhagmann/gem-contribute")).to be(true)
+        expect(config.comment_on_fix?("rspec/rspec")).to be(false)
+      end
+    end
+  end
+
   describe "#set" do
     it "writes the value and makes it readable" do
       config.set("clone_root", "~/code/gems")

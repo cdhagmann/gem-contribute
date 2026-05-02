@@ -12,6 +12,7 @@ module GemContribute
     autoload :Fix, "gem_contribute/cli/fix"
     autoload :Git, "gem_contribute/cli/fix"
     autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
+    autoload :IssueAnnouncer, "gem_contribute/cli/issue_announcer"
     autoload :Submit, "gem_contribute/cli/submit"
     autoload :RateLimitFooter, "gem_contribute/cli/rate_limit_footer"
     USAGE = <<~USAGE
@@ -29,7 +30,7 @@ module GemContribute
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
-                                 Add -e to open your editor, -a to launch your AI tool.
+                                 Flags: -e (editor), -a (AI tool), --no-comment.
         submit                   Push the current branch and open a pre-filled
                                  PR compare page in the browser. Run from inside
                                  a clone created by `fix`.
@@ -68,8 +69,9 @@ module GemContribute
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
       "fix" => lambda { |o, e|
+        config = GemContribute::Config.new
         Fix.new(stdout: o, stderr: e,
-                clone_root: GemContribute::Config.new.clone_root)
+                clone_root: config.clone_root, config: config)
       },
       "submit" => ->(o, e) { Submit.new(stdout: o, stderr: e) }
     }.freeze

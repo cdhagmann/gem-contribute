@@ -79,6 +79,18 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
     end
   end
 
+  describe "#comment_on_issue without a token" do
+    it "raises AuthRequired" do
+      expect { adapter.comment_on_issue(project, 1, "x") }.to raise_error(GemContribute::AuthRequired)
+    end
+  end
+
+  describe "#issue_comments without a token" do
+    it "raises AuthRequired" do
+      expect { adapter.issue_comments(project, 1) }.to raise_error(GemContribute::AuthRequired)
+    end
+  end
+
   context "with a token" do
     let(:adapter) { described_class.new(cache: cache, token: "gho_test") }
 
@@ -142,6 +154,70 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
         stub_request(:get, "https://api.github.com/repos/alice/sidekiq").to_return(status: 404)
         expect(adapter.fork_ready?("alice", "sidekiq")).to be(false)
       end
+    end
+
+    describe "#comment_on_issue" do
+      it "POSTs to /repos/:owner/:repo/issues/:n/comments and returns the parsed body" do
+        stub_request(:post, "https://api.github.com/repos/sidekiq/sidekiq/issues/1234/comments")
+          .with(headers: { "Authorization" => "Bearer gho_test" },
+                body: hash_including("body" => "Hello world"))
+          .to_return(
+            status: 201,
+            headers: { "Content-Type" => "application/json" },
+            body: JSON.dump("id" => 999, "body" => "Hello world",
+                            "html_url" => "https://github.com/sidekiq/sidekiq/issues/1234#issuecomment-999")
+          )
+
+        body = adapter.comment_on_issue(project, 1234, "Hello world")
+        expect(body["id"]).to eq(999)
+        expect(body["body"]).to eq("Hello world")
+      end
+    end
+
+    describe "#issue_comments" do
+      it "GETs the issue comments and returns the parsed array" do
+        stub_request(:get, "https://api.github.com/repos/sidekiq/sidekiq/issues/1234/comments")
+          .with(headers: { "Authorization" => "Bearer gho_test" })
+          .to_return(
+            status: 200,
+            headers: { "Content-Type" => "application/json" },
+            body: JSON.dump([{ "id" => 1, "body" => "first" }, { "id" => 2, "body" => "second" }])
+          )
+
+        comments = adapter.issue_comments(project, 1234)
+        expect(comments.size).to eq(2)
+        expect(comments.first["body"]).to eq("first")
+      end
+    end
+  end
+
+  describe "#search_issues" do
+    it "GETs /search/issues with the q param and returns the items array" do
+      stub_request(:get, "https://api.github.com/search/issues")
+        .with(query: { "q" => "\"<!-- gem-contribute:working v1 -->\"" })
+        .to_return(
+          status: 200,
+          headers: { "Content-Type" => "application/json" },
+          body: JSON.dump("total_count" => 1,
+                          "items" => [{ "number" => 7,
+                                        "html_url" => "https://github.com/sidekiq/sidekiq/issues/7" }])
+        )
+
+      items = adapter.search_issues("\"<!-- gem-contribute:working v1 -->\"")
+      expect(items.size).to eq(1)
+      expect(items.first["number"]).to eq(7)
+    end
+
+    it "caches the result by query so repeat calls don't re-hit the API" do
+      stub_request(:get, "https://api.github.com/search/issues")
+        .with(query: { "q" => "anything" })
+        .to_return(status: 200,
+                   headers: { "Content-Type" => "application/json" },
+                   body: JSON.dump("items" => []))
+
+      adapter.search_issues("anything")
+      adapter.search_issues("anything")
+      expect(WebMock).to have_requested(:get, %r{api\.github\.com/search/issues}).once
     end
   end
 
