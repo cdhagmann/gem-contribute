@@ -4,7 +4,7 @@ require "open3"
 
 module GemContribute
   module CLI
-    # `gem-contribute fork-clone-branch <gem>/<issue#> [-e] [-a]`
+    # `gem-contribute fix <gem>/<issue#> [-e] [-a]`
     #
     # Performs the full sequence the TUI's `f` keybinding will trigger in
     # Stage 3:
@@ -71,7 +71,7 @@ module GemContribute
         @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
         1
       rescue AdapterError => e
-        @stderr.puts "fork-clone-branch failed: #{e.message}"
+        @stderr.puts "fix failed: #{e.message}"
         1
       end
 
@@ -96,7 +96,7 @@ module GemContribute
       end
 
       def print_usage_error
-        @stderr.puts "Usage: gem-contribute fork-clone-branch <gem>/<issue#> [-e] [-a]"
+        @stderr.puts "Usage: gem-contribute fix <gem>/<issue#> [-e] [-a]"
         2
       end
 
@@ -116,7 +116,7 @@ module GemContribute
         project = @resolver.resolve(gem)
 
         if project.host != "github.com"
-          @stderr.puts "Cannot fork-clone-branch: #{gem_name} resolves to #{project.host} " \
+          @stderr.puts "Cannot run `fix`: #{gem_name} resolves to #{project.host} " \
                        "(only github.com is supported at v0.1)"
           return nil
         end

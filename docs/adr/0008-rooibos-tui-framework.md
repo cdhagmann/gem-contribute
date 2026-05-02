@@ -9,7 +9,7 @@
 `gem-contribute` is a TUI that needs to:
 
 1. Make multiple HTTP calls (RubyGems API, GitHub API, GitHub OAuth device flow polling) without freezing the UI.
-2. Shell out to `git` for fork-clone-branch, also without freezing the UI.
+2. Shell out to `git` for the `fix` flow, also without freezing the UI.
 3. Compose four primary views (project list → issues → issue detail → CONTRIBUTING) with the auth-prompt flow able to interrupt any of them.
 4. Be testable enough that the gem can be maintained past the conference without breaking on every PR.
 
@@ -41,7 +41,7 @@ Use Rooibos as the TUI framework. `ratatui_ruby` remains a transitive dependency
 
 ## Consequences
 
-**On the design doc:** the "Modules" section needs revision. Views become Rooibos fragments, not bare classes. The `Worker` module disappears — fork-clone-branch is a sequence of Commands emitted from `Update`. The architecture diagram becomes MVU-shaped. Testing strategy shifts from "test the boundaries, skip the TUI" to "test the Update functions everywhere."
+**On the design doc:** the "Modules" section needs revision. Views become Rooibos fragments, not bare classes. The `Worker` module disappears — `fix` is a sequence of Commands emitted from `Update`. The architecture diagram becomes MVU-shaped. Testing strategy shifts from "test the boundaries, skip the TUI" to "test the Update functions everywhere."
 
 **On dependencies:** add `rooibos` to the gemspec. Pin to `~> 0.7.0` for v0.1 (allows patch updates within 0.7, blocks 0.8+ until we audit). Bump deliberately, with an ADR if the bump requires meaningful changes.
 

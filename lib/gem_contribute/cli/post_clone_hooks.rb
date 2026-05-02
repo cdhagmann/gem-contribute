@@ -4,10 +4,10 @@ require "shellwords"
 
 module GemContribute
   module CLI
-    # Optional post-clone hooks invoked by `fork-clone-branch` when the
-    # user passes `-e` (open editor) and/or `-a` (launch AI tool).
-    # Extracted so the fork-clone-branch state machine stays focused on
-    # the fork/clone/branch sequence.
+    # Optional post-clone hooks invoked by `fix` when the user passes
+    # `-e` (open editor) and/or `-a` (launch AI tool). Extracted so the
+    # `fix` state machine stays focused on the fork/clone/branch
+    # sequence.
     class PostCloneHooks
       def initialize(stdout: $stdout, stderr: $stderr,
                      config: GemContribute::Config.new,

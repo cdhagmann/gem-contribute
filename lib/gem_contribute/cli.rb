@@ -30,7 +30,6 @@ module GemContribute
         auth logout              Remove the cached token for github.com.
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
                                  Add -e to open your editor, -a to launch your AI tool.
-                                 (alias: fork-clone-branch)
         submit                   Push the current branch and open a pre-filled
                                  PR compare page in the browser. Run from inside
                                  a clone created by `fix`.
@@ -70,11 +69,7 @@ module GemContribute
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
       "fix" => lambda { |o, e|
         Fix.new(stdout: o, stderr: e,
-                            clone_root: GemContribute::Config.new.clone_root)
-      },
-      "fork-clone-branch" => lambda { |o, e|
-        Fix.new(stdout: o, stderr: e,
-                            clone_root: GemContribute::Config.new.clone_root)
+                clone_root: GemContribute::Config.new.clone_root)
       },
       "submit" => ->(o, e) { Submit.new(stdout: o, stderr: e) }
     }.freeze

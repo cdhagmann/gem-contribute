@@ -8,7 +8,7 @@ module GemContribute
     # With "all":     iterates every github.com gem in Gemfile.lock.
     #
     # Issue numbers appear prominently so they can be passed directly to
-    # `fork-clone-branch <gem>/<issue#>`.
+    # `fix <gem>/<issue#>`.
     class Issues
       DEFAULT_LABEL = "good first issue"
 

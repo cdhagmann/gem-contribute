@@ -5,7 +5,7 @@ require "stringio"
 RSpec.describe GemContribute::CLI::Fix do
   let(:stdout) { StringIO.new }
   let(:stderr) { StringIO.new }
-  let(:tmpdir) { Dir.mktmpdir("gem-contribute-fcb-") }
+  let(:tmpdir) { Dir.mktmpdir("gem-contribute-fix-") }
   let(:store) { GemContribute::TokenStore.new(path: File.join(tmpdir, "auth.json")) }
   let(:resolver) { instance_double(GemContribute::Resolver) }
   let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }

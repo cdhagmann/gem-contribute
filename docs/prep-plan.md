@@ -36,14 +36,14 @@ Minimum viable workshop = Stages 1, 2, and 4 done. Stage 3 (the TUI) can become 
 **Deliberately not in this stage:**
 - No auth code. Anonymous GitHub API only.
 - No TUI. CLI output via plain `puts`.
-- No fork-clone-branch. That's Stage 2.
+- No `fix` action. That's Stage 2.
 - No Rooibos dependency yet.
 
 **Stop here and check in with Chris.** Demo the script against `gem-contribute`'s own `Gemfile.lock`. The output should make Chris want to keep going.
 
 ### Stage 2 — Auth and the action
 
-**Goal:** Add device-flow auth and the fork-clone-branch action. Still no TUI; everything is CLI flags. Proves the auth and action layers work.
+**Goal:** Add device-flow auth and the `fix` action. Still no TUI; everything is CLI flags. Proves the auth and action layers work.
 
 **Acceptance:**
 
@@ -53,7 +53,7 @@ Minimum viable workshop = Stages 1, 2, and 4 done. Stage 3 (the TUI) can become 
 - [ ] Polling respects `slow_down` errors and the 15-minute device-code expiry
 - [ ] `gem-contribute auth login` and `gem-contribute auth status` CLI commands work
 - [ ] `GitHubAdapter` gains `fork`, `already_forked?` methods that raise `AuthRequired` if no token
-- [ ] A `fork-clone-branch` CLI subcommand takes a `gem/issue_number` argument, performs the full sequence, prints the local path
+- [ ] A `fix` CLI subcommand takes a `gem/issue_number` argument, performs the full sequence, prints the local path
 - [ ] Unit tests for the auth state machine (the protocol is deterministic — test it)
 - [ ] Integration test gated on `GEM_CONTRIBUTE_INTEGRATION=1` against a small friendly gem
 - [ ] **Use the tool to open one real PR** — even a typo fix in a README. The proof that the architecture works.
@@ -88,7 +88,7 @@ Minimum viable workshop = Stages 1, 2, and 4 done. Stage 3 (the TUI) can become 
 - No label normalization (ADR-0005)
 - No CONTRIBUTING parsing (ADR-0007)
 - No private-repo support
-- No `Worker` orchestrator class — fork-clone-branch is a state machine in `Update`
+- No `Worker` orchestrator class — `fix` is a state machine in `Update`
 
 **Stop and check in with Chris.** This is the demo for the workshop opening.
 
@@ -118,7 +118,7 @@ Minimum viable workshop = Stages 1, 2, and 4 done. Stage 3 (the TUI) can become 
 - "Authenticated as @user" indicator
 - Sort gems by issue count
 - Skip path/git source gems with a clear status line
-- Confirmation dialog before fork-clone-branch
+- Confirmation dialog before `fix`
 - `o` to open the gem's homepage in browser
 - "Last updated" warning for stale-looking gems
 
@@ -147,7 +147,7 @@ You're ready when, on a fresh laptop:
 
 1. `git clone … && cd gem-contribute && bundle install` succeeds
 2. `bin/gem-contribute` launches the TUI against a real `Gemfile.lock`
-3. `f` on an issue completes the fork-clone-branch flow with the device-flow prompt firing
+3. `f` on an issue completes the `fix` flow with the device-flow prompt firing
 4. The workshop issues are visible on the public GitHub repo with the `workshop` label
 5. `docs/workshop.md` reads cleanly to someone who hasn't seen the project
 

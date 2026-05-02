@@ -50,7 +50,7 @@ gem-contribute submit                 # push, then open the PR compare page in y
 | `gem-contribute auth login` | Authenticate with GitHub via OAuth device flow (no token paste, no client secret). |
 | `gem-contribute auth status` | Show whether the cached token is still valid. |
 | `gem-contribute auth logout` | Drop the cached token. |
-| `gem-contribute fix <gem>/<n>` | Fork the gem's repo, clone the fork to `<clone_root>/<owner>/<repo>`, branch from default. Alias: `fork-clone-branch`. |
+| `gem-contribute fix <gem>/<n>` | Fork the gem's repo, clone the fork to `<clone_root>/<owner>/<repo>`, branch from default. |
 | `gem-contribute submit` | From inside a clone, push the current branch and open a pre-filled PR compare page in your browser. |
 | `gem-contribute config set <k> <v>` | Persist user preferences. |
 | `gem-contribute config list` | Show current configuration. |
