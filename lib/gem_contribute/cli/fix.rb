@@ -4,37 +4,20 @@ require "open3"
 
 module GemContribute
   module CLI
-    # `gem-contribute fix <gem>/<issue#> [-e] [-a]`
+    # `gem-contribute fix <gem>/<issue#> [-e] [-a] [--no-comment]`
     #
-    # Performs the full sequence the TUI's `f` keybinding will trigger in
-    # Stage 3:
+    # The issue-tied path: ForkClone (fork + clone + upstream remote),
+    # then branch to `gem-contribute/issue-<N>`, post a "working on this"
+    # comment (skippable), optionally open the user's editor or AI tool.
     #
-    #   1. Resolve <gem> via the RubyGems Resolver (no lockfile required;
-    #      the lockfile is for discovery via `scan`, not gating here).
-    #   2. Read the cached GitHub token; raise AuthRequired with a clear
-    #      `auth login` hint if missing.
-    #   3. Look up the viewer's login.
-    #   4. If they don't already have a fork, fork the upstream repo.
-    #   5. Poll until the fork is reachable (forks return 202 immediately
-    #      but the resource may 404 for a few seconds).
-    #   6. `git clone` the fork to `<clone_root>/<owner>/<repo>`.
-    #   7. `git checkout -b gem-contribute/issue-<N>` from the default branch.
-    #   8. Print the local path on stdout.
-    #   9. Optionally invoke PostCloneHooks for `-e` (open editor) and/or
-    #      `-a` (launch AI tool).
+    # `gem-contribute fork <gem>` is the look-around-first counterpart;
+    # both compose the same `ForkClone` primitive.
     #
     # The shell-outs use Open3 with explicit args (not strings) to avoid any
     # shell-injection surface.
-    #
-    # Class length: this is the v0.1 fix-flow state machine. Splitting it
-    # into pieces would just create arbitrary sub-modules without making
-    # the flow easier to follow. Disabled here with rationale.
-    # rubocop:disable Metrics/ClassLength
     class Fix
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
       BRANCH_PREFIX = "gem-contribute/issue-"
-      FORK_READINESS_RETRIES = 12 # 12 × 5s = 60s ceiling
-      FORK_READINESS_INTERVAL = 5
 
       # rubocop:disable Metrics/ParameterLists
       def initialize(stdout: $stdout,
@@ -46,7 +29,8 @@ module GemContribute
                      clone_root: DEFAULT_CLONE_ROOT,
                      sleeper: ->(s) { Kernel.sleep(s) },
                      post_clone_hooks: nil,
-                     config: nil)
+                     config: nil,
+                     fork_clone: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
@@ -54,9 +38,10 @@ module GemContribute
         @adapter_factory = adapter_factory
         @git = git
         @clone_root = clone_root
-        @sleeper = sleeper
         @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
         @config = config || GemContribute::Config.new
+        @fork_clone = fork_clone || ForkClone.new(stdout: stdout, git: @git,
+                                                  clone_root: clone_root, sleeper: sleeper)
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -135,19 +120,24 @@ module GemContribute
       def execute(adapter, project, issue, flags)
         viewer = adapter.viewer_login
         was_resuming = branch_exists_locally?(project, issue)
-        clone_url = ensure_fork(adapter, project, viewer)
-        local_path = clone_into_root(project, clone_url)
+        local_path = @fork_clone.call(adapter, project, viewer)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
         @git.checkout_branch(local_path, branch_name)
-        # `submit` needs to know the canonical project to point the PR at.
-        # Naming it `upstream` follows the standard fork workflow convention.
-        @git.add_remote(local_path, "upstream",
-                        "https://github.com/#{project.owner}/#{project.repo}.git")
 
         print_summary(local_path, branch_name, project, viewer)
         announce_or_skip(adapter, project, issue, viewer, was_resuming: was_resuming, flags: flags)
         @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
         0
+      end
+
+      def print_summary(local_path, branch_name, project, viewer)
+        @stdout.puts "Forked, cloned, and branched."
+        @stdout.puts "  path:   #{local_path}"
+        @stdout.puts "  branch: #{branch_name}"
+        @stdout.puts "  upstream: https://github.com/#{project.owner}/#{project.repo}"
+        @stdout.puts "  fork:     https://github.com/#{viewer}/#{project.repo}"
+        @stdout.puts
+        @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
       end
 
       # True if `gem-contribute/issue-<N>` already exists locally — the
@@ -171,56 +161,7 @@ module GemContribute
           stdout: @stdout, stderr: @stderr
         )
       end
-
-      def print_summary(local_path, branch_name, project, viewer)
-        @stdout.puts "Forked, cloned, and branched."
-        @stdout.puts "  path:   #{local_path}"
-        @stdout.puts "  branch: #{branch_name}"
-        @stdout.puts "  upstream: https://github.com/#{project.owner}/#{project.repo}"
-        @stdout.puts "  fork:     https://github.com/#{viewer}/#{project.repo}"
-        @stdout.puts
-        @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
-      end
-
-      def ensure_fork(adapter, project, viewer)
-        if adapter.already_forked?(project)
-          @stdout.puts "You already have a fork at #{viewer}/#{project.repo}. Skipping fork."
-          return "https://github.com/#{viewer}/#{project.repo}.git"
-        end
-
-        @stdout.puts "Forking #{project.owner}/#{project.repo} → #{viewer}/#{project.repo}..."
-        body = adapter.fork(project)
-        wait_until_ready(adapter, viewer, project.repo)
-        body.fetch("clone_url")
-      end
-
-      def wait_until_ready(adapter, viewer, name)
-        ready = FORK_READINESS_RETRIES.times.any? do |i|
-          break true if adapter.fork_ready?(viewer, name)
-
-          @sleeper.call(FORK_READINESS_INTERVAL) unless i == FORK_READINESS_RETRIES - 1
-          false
-        end
-        return if ready
-
-        raise AdapterError, "fork not reachable after #{FORK_READINESS_RETRIES * FORK_READINESS_INTERVAL}s"
-      end
-
-      def clone_into_root(project, clone_url)
-        target = File.join(@clone_root, project.owner, project.repo)
-        if File.directory?(File.join(target, ".git"))
-          @stdout.puts "Reusing existing clone at #{target}."
-          return target
-        end
-
-        FileUtils.mkdir_p(File.dirname(target))
-        @stdout.puts "Cloning into #{target}..."
-        @git.clone(clone_url, target)
-        target
-      end
     end
-
-    # rubocop:enable Metrics/ClassLength
 
     # Thin wrapper around git so the spec can swap in a fake without shelling
     # out. The real implementation uses Open3 with arg-list invocation — no

@@ -11,6 +11,8 @@ module GemContribute
     autoload :Issues, "gem_contribute/cli/issues"
     autoload :Fix, "gem_contribute/cli/fix"
     autoload :Git, "gem_contribute/cli/fix"
+    autoload :Fork, "gem_contribute/cli/fork"
+    autoload :ForkClone, "gem_contribute/cli/fork_clone"
     autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
     autoload :IssueAnnouncer, "gem_contribute/cli/issue_announcer"
     autoload :Submit, "gem_contribute/cli/submit"
@@ -29,6 +31,10 @@ module GemContribute
         auth login               Authenticate with GitHub via OAuth device flow.
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
+        fork <gem>               Fork the gem's repo, clone the fork, leave you on
+                                 the default branch (no issue branch). Use when you
+                                 want to look around before picking an issue.
+                                 Flags: -e (editor), -a (AI tool).
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
                                  Flags: -e (editor), -a (AI tool), --no-comment.
         submit                   Push the current branch and open a pre-filled
@@ -68,6 +74,10 @@ module GemContribute
       "issues" => ->(o, e) { Issues.new(stdout: o, stderr: e, adapter: github_adapter) },
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
+      "fork" => lambda { |o, e|
+        Fork.new(stdout: o, stderr: e,
+                 clone_root: GemContribute::Config.new.clone_root)
+      },
       "fix" => lambda { |o, e|
         config = GemContribute::Config.new
         Fix.new(stdout: o, stderr: e,
