@@ -40,6 +40,7 @@ module GemContribute
         # self-injection is intentionally additive, not part of the count.
         print_summary(tally_hosts(projects), gems.size)
         scan_github_projects(projects)
+        RateLimitFooter.print(adapter: @adapter, stdout: @stdout)
         0
       rescue LockfileNotFound => e
         @stderr.puts "gem-contribute: #{e.message}"
