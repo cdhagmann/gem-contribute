@@ -52,6 +52,18 @@ RSpec.describe GemContribute::CLI::ForkCloneBranch do
     expect(stderr.string).to include("auth login")
   end
 
+  it "exits 1 with an init hint when clone_root is nil" do
+    cli_no_clone_root = described_class.new(
+      stdout: stdout, stderr: stderr,
+      resolver: resolver, store: store,
+      adapter_factory: ->(**) { adapter },
+      git: git, clone_root: nil,
+      sleeper: ->(_s) {}
+    )
+    expect(cli_no_clone_root.run(["sidekiq/1"])).to eq(1)
+    expect(stderr.string).to include("gem-contribute init")
+  end
+
   it "forks, polls until ready, clones, and branches when no fork exists yet", :aggregate_failures do
     allow(adapter).to receive(:viewer_login).and_return("alice")
     allow(adapter).to receive(:already_forked?).with(project).and_return(false)

@@ -8,8 +8,8 @@ RSpec.describe GemContribute::Config do
   after { FileUtils.rm_rf(tmpdir) }
 
   describe "#clone_root" do
-    it "returns the default when no config file exists" do
-      expect(config.clone_root).to eq(File.expand_path("~/code/oss"))
+    it "returns nil when no config file exists" do
+      expect(config.clone_root).to be_nil
     end
 
     it "returns the configured value with ~ expanded" do
@@ -49,6 +49,6 @@ RSpec.describe GemContribute::Config do
   it "treats a corrupt config file as empty rather than crashing" do
     File.write(path, ":::not valid yaml:::")
     expect { described_class.new(path: path) }.not_to raise_error
-    expect(described_class.new(path: path).clone_root).to eq(File.expand_path("~/code/oss"))
+    expect(described_class.new(path: path).clone_root).to be_nil
   end
 end

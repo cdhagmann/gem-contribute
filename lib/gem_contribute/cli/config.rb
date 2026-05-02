@@ -18,8 +18,9 @@ module GemContribute
           list                 Print all configured values.
 
         Keys:
-          clone_root           Directory where forks are cloned (default: ~/code/oss).
-                               Example: gem-contribute config set clone_root ~/Projects/oss
+          clone_root           Directory where forks are cloned. Set with
+                               `gem-contribute init` (interactive) or
+                               `gem-contribute config set clone_root <path>`.
       USAGE
 
       def initialize(stdout: $stdout, stderr: $stderr, config: GemContribute::Config.new)
@@ -73,13 +74,14 @@ module GemContribute
           return 1
         end
 
-        @stdout.puts @config.to_h.fetch(key, "(not set — default applies)")
+        @stdout.puts @config.to_h.fetch(key, "(not set; run `gem-contribute init`)")
         0
       end
 
       def list
         @stdout.puts "Configuration (#{GemContribute::Config.default_path}):"
-        @stdout.puts "  clone_root = #{@config.clone_root}"
+        display = @config.clone_root || "(not set; run `gem-contribute init`)"
+        @stdout.puts "  clone_root = #{display}"
         0
       end
     end

@@ -7,6 +7,7 @@ module GemContribute
     autoload :Scan, "gem_contribute/cli/scan"
     autoload :Auth, "gem_contribute/cli/auth"
     autoload :Config, "gem_contribute/cli/config"
+    autoload :Init, "gem_contribute/cli/init"
     autoload :Issues, "gem_contribute/cli/issues"
     autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
     autoload :Git, "gem_contribute/cli/fork_clone_branch"
@@ -16,6 +17,7 @@ module GemContribute
       Usage: gem-contribute <command> [options]
 
       Commands:
+        init                     One-time interactive setup (sets clone_root).
         scan [path]              Summarize the contributable surface of a Gemfile.lock.
                                  Path defaults to ./Gemfile.lock.
         issues <gem|all>         List open "good first issue" issues for a gem (or all gems).
@@ -59,6 +61,7 @@ module GemContribute
     end
 
     COMMANDS = {
+      "init" => ->(o, e) { Init.new(stdout: o, stderr: e) },
       "scan" => ->(o, e) { Scan.new(stdout: o, stderr: e, adapter: github_adapter) },
       "issues" => ->(o, e) { Issues.new(stdout: o, stderr: e, adapter: github_adapter) },
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },

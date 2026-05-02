@@ -48,6 +48,8 @@ module GemContribute
       end
 
       def run(argv)
+        return missing_clone_root if @clone_root.nil?
+
         target = argv.shift
         return print_usage_error if target.nil? || !target.include?("/")
 
@@ -68,6 +70,11 @@ module GemContribute
       end
 
       private
+
+      def missing_clone_root
+        @stderr.puts "clone_root is not configured. Run `gem-contribute init` first."
+        1
+      end
 
       def print_usage_error
         @stderr.puts "Usage: gem-contribute fork-clone-branch <gem>/<issue#>"
