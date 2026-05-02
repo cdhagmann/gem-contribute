@@ -9,8 +9,8 @@ module GemContribute
     autoload :Config, "gem_contribute/cli/config"
     autoload :Init, "gem_contribute/cli/init"
     autoload :Issues, "gem_contribute/cli/issues"
-    autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
-    autoload :Git, "gem_contribute/cli/fork_clone_branch"
+    autoload :Fix, "gem_contribute/cli/fix"
+    autoload :Git, "gem_contribute/cli/fix"
     autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
     autoload :Submit, "gem_contribute/cli/submit"
     autoload :RateLimitFooter, "gem_contribute/cli/rate_limit_footer"
@@ -69,11 +69,11 @@ module GemContribute
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
       "fix" => lambda { |o, e|
-        ForkCloneBranch.new(stdout: o, stderr: e,
+        Fix.new(stdout: o, stderr: e,
                             clone_root: GemContribute::Config.new.clone_root)
       },
       "fork-clone-branch" => lambda { |o, e|
-        ForkCloneBranch.new(stdout: o, stderr: e,
+        Fix.new(stdout: o, stderr: e,
                             clone_root: GemContribute::Config.new.clone_root)
       },
       "submit" => ->(o, e) { Submit.new(stdout: o, stderr: e) }

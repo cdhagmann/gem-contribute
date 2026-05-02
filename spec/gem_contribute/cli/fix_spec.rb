@@ -2,7 +2,7 @@
 
 require "stringio"
 
-RSpec.describe GemContribute::CLI::ForkCloneBranch do
+RSpec.describe GemContribute::CLI::Fix do
   let(:stdout) { StringIO.new }
   let(:stderr) { StringIO.new }
   let(:tmpdir) { Dir.mktmpdir("gem-contribute-fcb-") }

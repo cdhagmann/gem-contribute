@@ -25,7 +25,7 @@ module GemContribute
     #
     # The shell-outs use Open3 with explicit args (not strings) to avoid any
     # shell-injection surface.
-    class ForkCloneBranch
+    class Fix
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
       BRANCH_PREFIX = "gem-contribute/issue-"
       FORK_READINESS_RETRIES = 12 # 12 × 5s = 60s ceiling
