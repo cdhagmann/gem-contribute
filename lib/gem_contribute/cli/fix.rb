@@ -4,7 +4,7 @@ require "open3"
 
 module GemContribute
   module CLI
-    # `gem-contribute fork-clone-branch <gem>/<issue#>`
+    # `gem-contribute fix <gem>/<issue#> [-e] [-a]`
     #
     # Performs the full sequence the TUI's `f` keybinding will trigger in
     # Stage 3:
@@ -20,15 +20,18 @@ module GemContribute
     #   6. `git clone` the fork to `<clone_root>/<owner>/<repo>`.
     #   7. `git checkout -b gem-contribute/issue-<N>` from the default branch.
     #   8. Print the local path on stdout.
+    #   9. Optionally invoke PostCloneHooks for `-e` (open editor) and/or
+    #      `-a` (launch AI tool).
     #
     # The shell-outs use Open3 with explicit args (not strings) to avoid any
     # shell-injection surface.
-    class ForkCloneBranch
+    class Fix
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
       BRANCH_PREFIX = "gem-contribute/issue-"
       FORK_READINESS_RETRIES = 12 # 12 × 5s = 60s ceiling
       FORK_READINESS_INTERVAL = 5
 
+      # rubocop:disable Metrics/ParameterLists
       def initialize(stdout: $stdout,
                      stderr: $stderr,
                      resolver: Resolver.new,
@@ -36,7 +39,8 @@ module GemContribute
                      adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
                      git: Git.new,
                      clone_root: DEFAULT_CLONE_ROOT,
-                     sleeper: ->(s) { Kernel.sleep(s) })
+                     sleeper: ->(s) { Kernel.sleep(s) },
+                     post_clone_hooks: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
@@ -45,12 +49,14 @@ module GemContribute
         @git = git
         @clone_root = clone_root
         @sleeper = sleeper
+        @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
       end
+      # rubocop:enable Metrics/ParameterLists
 
       def run(argv)
         return missing_clone_root if @clone_root.nil?
 
-        target = argv.shift
+        target, flags = parse_argv(argv)
         return print_usage_error if target.nil? || !target.include?("/")
 
         gem_name, issue = target.split("/", 2)
@@ -60,16 +66,29 @@ module GemContribute
         project = resolve_or_fail(gem_name)
         return 1 if project.nil?
 
-        execute(adapter, project, issue)
+        execute(adapter, project, issue, flags)
       rescue AuthRequired
         @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
         1
       rescue AdapterError => e
-        @stderr.puts "fork-clone-branch failed: #{e.message}"
+        @stderr.puts "fix failed: #{e.message}"
         1
       end
 
       private
+
+      def parse_argv(argv)
+        flags = { editor: false, ai_tool: false }
+        positional = []
+        argv.each do |arg|
+          case arg
+          when "-e", "--editor" then flags[:editor] = true
+          when "-a", "--ai"     then flags[:ai_tool] = true
+          else positional << arg
+          end
+        end
+        [positional.first, flags]
+      end
 
       def missing_clone_root
         @stderr.puts "clone_root is not configured. Run `gem-contribute init` first."
@@ -77,7 +96,7 @@ module GemContribute
       end
 
       def print_usage_error
-        @stderr.puts "Usage: gem-contribute fork-clone-branch <gem>/<issue#>"
+        @stderr.puts "Usage: gem-contribute fix <gem>/<issue#> [-e] [-a]"
         2
       end
 
@@ -97,7 +116,7 @@ module GemContribute
         project = @resolver.resolve(gem)
 
         if project.host != "github.com"
-          @stderr.puts "Cannot fork-clone-branch: #{gem_name} resolves to #{project.host} " \
+          @stderr.puts "Cannot run `fix`: #{gem_name} resolves to #{project.host} " \
                        "(only github.com is supported at v0.1)"
           return nil
         end
@@ -105,7 +124,7 @@ module GemContribute
         project
       end
 
-      def execute(adapter, project, issue)
+      def execute(adapter, project, issue, flags)
         viewer = adapter.viewer_login
         clone_url = ensure_fork(adapter, project, viewer)
         local_path = clone_into_root(project, clone_url)
@@ -116,6 +135,12 @@ module GemContribute
         @git.add_remote(local_path, "upstream",
                         "https://github.com/#{project.owner}/#{project.repo}.git")
 
+        print_summary(local_path, branch_name, project, viewer)
+        @post_clone_hooks.call(local_path, **flags)
+        0
+      end
+
+      def print_summary(local_path, branch_name, project, viewer)
         @stdout.puts "Forked, cloned, and branched."
         @stdout.puts "  path:   #{local_path}"
         @stdout.puts "  branch: #{branch_name}"
@@ -123,7 +148,6 @@ module GemContribute
         @stdout.puts "  fork:     https://github.com/#{viewer}/#{project.repo}"
         @stdout.puts
         @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
-        0
       end
 
       def ensure_fork(adapter, project, viewer)

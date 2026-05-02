@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = <<~DESC
     gem-contribute reads a project's Gemfile.lock, resolves each gem's source
     repository via the RubyGems API, surfaces open contributable issues from
-    those repositories, and offers a one-keystroke fork-clone-branch flow so a
+    those repositories, and offers a one-keystroke fix flow so a
     developer can go from "I noticed an issue" to "I have a working branch" in
     seconds. v0.1 supports GitHub-hosted gems with OAuth device-flow auth.
   DESC

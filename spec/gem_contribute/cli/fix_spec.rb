@@ -2,10 +2,10 @@
 
 require "stringio"
 
-RSpec.describe GemContribute::CLI::ForkCloneBranch do
+RSpec.describe GemContribute::CLI::Fix do
   let(:stdout) { StringIO.new }
   let(:stderr) { StringIO.new }
-  let(:tmpdir) { Dir.mktmpdir("gem-contribute-fcb-") }
+  let(:tmpdir) { Dir.mktmpdir("gem-contribute-fix-") }
   let(:store) { GemContribute::TokenStore.new(path: File.join(tmpdir, "auth.json")) }
   let(:resolver) { instance_double(GemContribute::Resolver) }
   let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }
@@ -133,4 +133,41 @@ RSpec.describe GemContribute::CLI::ForkCloneBranch do
     expect(cli.run(["sidekiq/1"])).to eq(1)
     expect(stderr.string).to include("fork not reachable")
   end
+
+  # rubocop:disable RSpec/MultipleMemoizedHelpers
+  describe "with -e and -a flags" do
+    let(:hooks) { instance_double(GemContribute::CLI::PostCloneHooks, call: nil) }
+    let(:cli_with_hooks) do
+      described_class.new(
+        stdout: stdout, stderr: stderr,
+        resolver: resolver, store: store,
+        adapter_factory: ->(**) { adapter },
+        git: git, clone_root: clone_root,
+        sleeper: ->(_s) {},
+        post_clone_hooks: hooks
+      )
+    end
+    let(:target_path) { File.join(clone_root, "sidekiq", "sidekiq") }
+
+    before do
+      allow(adapter).to receive(:viewer_login).and_return("alice")
+      allow(adapter).to receive(:already_forked?).with(project).and_return(true)
+    end
+
+    it "passes parsed flags to post_clone_hooks" do
+      expect(cli_with_hooks.run(["sidekiq/1", "-e", "-a"])).to eq(0)
+      expect(hooks).to have_received(:call).with(target_path, editor: true, ai_tool: true)
+    end
+
+    it "parses flags placed before the target" do
+      expect(cli_with_hooks.run(["-e", "sidekiq/1"])).to eq(0)
+      expect(hooks).to have_received(:call).with(target_path, editor: true, ai_tool: false)
+    end
+
+    it "calls hooks with both flags false when neither flag is given" do
+      expect(cli_with_hooks.run(["sidekiq/1"])).to eq(0)
+      expect(hooks).to have_received(:call).with(target_path, editor: false, ai_tool: false)
+    end
+  end
+  # rubocop:enable RSpec/MultipleMemoizedHelpers
 end

@@ -9,8 +9,9 @@ module GemContribute
     autoload :Config, "gem_contribute/cli/config"
     autoload :Init, "gem_contribute/cli/init"
     autoload :Issues, "gem_contribute/cli/issues"
-    autoload :ForkCloneBranch, "gem_contribute/cli/fork_clone_branch"
-    autoload :Git, "gem_contribute/cli/fork_clone_branch"
+    autoload :Fix, "gem_contribute/cli/fix"
+    autoload :Git, "gem_contribute/cli/fix"
+    autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
     autoload :Submit, "gem_contribute/cli/submit"
     autoload :RateLimitFooter, "gem_contribute/cli/rate_limit_footer"
     USAGE = <<~USAGE
@@ -28,7 +29,7 @@ module GemContribute
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
-                                 (alias: fork-clone-branch)
+                                 Add -e to open your editor, -a to launch your AI tool.
         submit                   Push the current branch and open a pre-filled
                                  PR compare page in the browser. Run from inside
                                  a clone created by `fix`.
@@ -67,12 +68,8 @@ module GemContribute
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
       "fix" => lambda { |o, e|
-        ForkCloneBranch.new(stdout: o, stderr: e,
-                            clone_root: GemContribute::Config.new.clone_root)
-      },
-      "fork-clone-branch" => lambda { |o, e|
-        ForkCloneBranch.new(stdout: o, stderr: e,
-                            clone_root: GemContribute::Config.new.clone_root)
+        Fix.new(stdout: o, stderr: e,
+                clone_root: GemContribute::Config.new.clone_root)
       },
       "submit" => ->(o, e) { Submit.new(stdout: o, stderr: e) }
     }.freeze

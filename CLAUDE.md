@@ -4,7 +4,7 @@ This file is read by Claude Code when working in this repository. Treat it as th
 
 ## Project shape
 
-`gem-contribute` is a terminal UI that reads a project's `Gemfile.lock`, surfaces open contributable issues from the gems' source repositories, and offers one-keystroke fork-clone-branch.
+`gem-contribute` is a terminal UI that reads a project's `Gemfile.lock`, surfaces open contributable issues from the gems' source repositories, and offers a one-keystroke `fix` flow.
 
 Read `docs/design.md` and the ADRs in `docs/adr/` before making non-trivial changes. The design doc describes the architecture and the ADRs explain why specific decisions were made. If a change conflicts with an ADR, propose updating the ADR first; don't silently violate it.
 

@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+### Removed
+
+- The `fork-clone-branch` CLI alias has been removed. Use `gem-contribute fix` instead — same behavior, shorter to type.
+
 ## [0.2.0] - 2026-05-02
 
 ### Added

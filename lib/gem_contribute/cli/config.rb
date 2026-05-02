@@ -21,6 +21,10 @@ module GemContribute
           clone_root           Directory where forks are cloned. Set with
                                `gem-contribute init` (interactive) or
                                `gem-contribute config set clone_root <path>`.
+          editor               Editor command for `fix -e`. Falls back to $EDITOR.
+                               Example: gem-contribute config set editor code
+          ai_tool              Shell command for `fix -a` (run in clone dir).
+                               Example: gem-contribute config set ai_tool "claude ."
       USAGE
 
       def initialize(stdout: $stdout, stderr: $stderr, config: GemContribute::Config.new)
@@ -80,8 +84,9 @@ module GemContribute
 
       def list
         @stdout.puts "Configuration (#{GemContribute::Config.default_path}):"
-        display = @config.clone_root || "(not set; run `gem-contribute init`)"
-        @stdout.puts "  clone_root = #{display}"
+        @stdout.puts "  clone_root = #{@config.clone_root || "(not set; run `gem-contribute init`)"}"
+        @stdout.puts "  editor = #{@config.editor || "(not set)"}"
+        @stdout.puts "  ai_tool = #{@config.ai_tool || "(not set)"}"
         0
       end
     end

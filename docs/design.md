@@ -225,7 +225,7 @@ The Rooibos snapshot tooling normalizes dynamic content (timestamps, paths in `~
 
 ## Roadmap (non-promises)
 
-**v0.1 (workshop):** GitHub-only, JIT auth, fork-clone-branch working, four primary fragments, Rooibos throughout, snapshot tests for the main flows.
+**v0.1 (workshop):** GitHub-only, JIT auth, `fix` working, four primary fragments, Rooibos throughout, snapshot tests for the main flows.
 
 **v0.2:** Better empty states, rate-limit display in the status bar, `r` keybinding to refresh the current view, keyboard help overlay (an additional fragment).
 
