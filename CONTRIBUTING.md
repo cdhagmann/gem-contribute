@@ -6,7 +6,7 @@ Thanks for considering a contribution. This project is *about* lowering the fric
 
 ```
 gem install gem-contribute
-gem-contribute auth login
+gem-contribute init                       # set clone_root and auth with GitHub
 gem-contribute fix gem-contribute/issue-5
 bundle install
 bin/rspec               # tests should pass on a clean checkout

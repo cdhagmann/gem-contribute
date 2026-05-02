@@ -35,6 +35,7 @@ Requires Ruby 3.2 or later.
 The CLI is a small set of subcommands:
 
 ```
+gem-contribute init                   One-time interactive setup (sets clone_root, then auth).
 gem-contribute scan [path]            Summarize the contributable surface of a Gemfile.lock.
 gem-contribute issues <gem|all>       List "good first issue" issues for one gem (or all).
 gem-contribute auth login             Authenticate with GitHub via OAuth device flow.
@@ -46,29 +47,29 @@ gem-contribute config set <key> <val> Persist user preferences (e.g. clone_root)
 A typical session:
 
 ```sh
-$ gem-contribute auth login              # one-time; uses GitHub device flow
+$ gem-contribute init                    # one-time: sets clone_root, then auth via GitHub device flow
 $ gem-contribute scan                    # see what's worth contributing to
 $ gem-contribute issues rubocop          # drill into one project's issues
 $ gem-contribute fix rubocop/12345       # fork, clone, branch
-$ cd ~/code/oss/rubocop/rubocop          # (or wherever clone_root points)
+$ cd ~/code/oss/rubocop/rubocop          # whatever clone_root you set during init
 # ... make your change, commit ...
 $ gem-contribute submit                  # push + open the PR compare page in your browser
 ```
 
-The `auth login` step opens GitHub's device-flow page in your browser and copies the one-time code to your clipboard — same UX as `gh auth login`, no token paste, no client secret. Tokens cache at `~/.config/gem-contribute/auth.json` (mode 0600).
+The auth step (run automatically by `init`, or directly via `gem-contribute auth login`) opens GitHub's device-flow page in your browser and copies the one-time code to your clipboard — same UX as `gh auth login`, no token paste, no client secret. Tokens cache at `~/.config/gem-contribute/auth.json` (mode 0600).
 
 ## Configuration
 
-User config lives at `~/.config/gem-contribute/config.yml`. Manage it with `gem-contribute config`:
+User config lives at `~/.config/gem-contribute/config.yml`. The interactive way to set it is `gem-contribute init`; for scripted setup, use `gem-contribute config`:
 
 ```sh
 gem-contribute config set clone_root ~/Projects/oss
 gem-contribute config list
 ```
 
-| Key          | Default      | Notes                                            |
-|--------------|--------------|--------------------------------------------------|
-| `clone_root` | `~/code/oss` | Where `fix` clones forks (`<root>/<owner>/<repo>`). |
+| Key          | Notes                                                                              |
+|--------------|------------------------------------------------------------------------------------|
+| `clone_root` | Where `fix` clones forks (`<root>/<owner>/<repo>`). Set via `init` or `config set`. No default — `fix` errors if unset. |
 
 ## Design
 
