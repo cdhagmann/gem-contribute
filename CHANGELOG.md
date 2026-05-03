@@ -6,6 +6,7 @@ All notable changes to this project will be documented here. The format is based
 
 ### Added
 
+- `gem-contribute fork <gem>` — the look-around-first counterpart to `fix`: fork the gem's repo, clone it, leave you on the default branch with no issue-tied work yet. Same `-e` / `-a` flags. Use this when you want to read the code before deciding whether to commit to a specific issue (closes [#12](https://github.com/cdhagmann/gem-contribute/issues/12)).
 - `gem-contribute fix -e` opens your editor in the clone directory after fork/clone/branch. Uses the new `editor` config key, falling back to `$EDITOR` (closes [#14](https://github.com/cdhagmann/gem-contribute/issues/14)).
 - `gem-contribute fix -a` launches your configured AI coding tool (new `ai_tool` config key) with the clone directory as cwd. Combine with `-e` to open both — editor first, AI tool second (closes [#14](https://github.com/cdhagmann/gem-contribute/issues/14)).
 - `gem-contribute fix` posts a "👋 I've started working on this" comment to the issue by default so other contributors don't double up on the same work. Opt out per-invocation with `--no-comment`, globally with `comment_on_fix: false` in config, or per-repo via `comment_on_fix_overrides` (YAML-only). Posting is soft-fail — the fork/clone/branch part still succeeds even if the comment can't be posted (closes [#18](https://github.com/cdhagmann/gem-contribute/issues/18)).
@@ -15,6 +16,7 @@ All notable changes to this project will be documented here. The format is based
 ### Changed
 
 - Internal class `ForkCloneBranch` renamed to `Fix` (the long name was cumbersome and didn't mirror the `fix` CLI verb). User-facing CLI surface unchanged.
+- Internal architecture: `HostAdapter` now owns every host-API verb (`fork`, `comment`, `pull_request_url`) plus host-specific URL templating (`clone_url`, `repo_url`); the new `Operations::Fork` / `Operations::Clone` primitives compose those with `Git`; `CLI::Fork` and `CLI::Fix` are thin compositions on top. The fork-readiness polling moved into the adapter — multi-host adapters can model readiness however the host actually works. See [ADR-0011](docs/adr/0011-host-adapter-owns-host-verbs.md). User-facing CLI surface unchanged.
 
 ### Removed
 

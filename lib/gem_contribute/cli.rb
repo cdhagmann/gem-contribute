@@ -10,7 +10,8 @@ module GemContribute
     autoload :Init, "gem_contribute/cli/init"
     autoload :Issues, "gem_contribute/cli/issues"
     autoload :Fix, "gem_contribute/cli/fix"
-    autoload :Git, "gem_contribute/cli/fix"
+    autoload :Fork, "gem_contribute/cli/fork"
+    autoload :Workflow, "gem_contribute/cli/workflow"
     autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
     autoload :IssueAnnouncer, "gem_contribute/cli/issue_announcer"
     autoload :Submit, "gem_contribute/cli/submit"
@@ -29,6 +30,11 @@ module GemContribute
         auth login               Authenticate with GitHub via OAuth device flow.
         auth status              Show whether you're authenticated.
         auth logout              Remove the cached token for github.com.
+        fork <gem|owner/repo>    Fork (and clone) any GitHub repo. Pass a gem name
+                                 to look it up on RubyGems, or `owner/repo` for any
+                                 GitHub project (e.g. `rubyevents/rubyevents`).
+                                 Lands on the default branch.
+                                 Flags: -e (editor), -a (AI tool).
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
                                  Flags: -e (editor), -a (AI tool), --no-comment.
         submit                   Push the current branch and open a pre-filled
@@ -68,6 +74,10 @@ module GemContribute
       "issues" => ->(o, e) { Issues.new(stdout: o, stderr: e, adapter: github_adapter) },
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
+      "fork" => lambda { |o, e|
+        Fork.new(stdout: o, stderr: e,
+                 clone_root: GemContribute::Config.new.clone_root)
+      },
       "fix" => lambda { |o, e|
         config = GemContribute::Config.new
         Fix.new(stdout: o, stderr: e,

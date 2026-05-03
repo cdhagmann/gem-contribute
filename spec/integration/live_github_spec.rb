@@ -56,10 +56,5 @@ RSpec.describe "live GitHub integration", :integration do
     it "looks up the viewer login via /user" do
       expect(adapter.viewer_login).to be_a(String)
     end
-
-    it "answers already_forked? without raising" do
-      result = adapter.already_forked?(project)
-      expect([true, false].include?(result)).to be(true)
-    end
   end
 end

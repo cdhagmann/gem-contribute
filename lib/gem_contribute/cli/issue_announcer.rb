@@ -28,7 +28,7 @@ module GemContribute
       def announce_working(adapter:, project:, issue:, stdout:, stderr:)
         return :skipped if already_announced?(adapter, project, issue, WORKING_MARKER)
 
-        adapter.comment_on_issue(project, issue, WORKING_BODY)
+        adapter.comment(project, issue: issue, body: WORKING_BODY)
         stdout.puts "Posted 'working on this' comment to issue ##{issue}."
         :posted
       rescue GemContribute::AdapterError => e

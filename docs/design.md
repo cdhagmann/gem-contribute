@@ -61,19 +61,42 @@ The `host` is parsed from the URL: `github.com`, `gitlab.com`, `codeberg.org`, o
 ### `HostAdapter` (interface) and `GitHubAdapter` (implementation)
 
 Input: a `Project` plus, for some methods, an auth token.
-Output: issues, CONTRIBUTING content, fork results.
+Output: issues, CONTRIBUTING content, fork results, host-specific URLs.
 
 ```ruby
-def issues(project, labels:)              # public, no auth needed
-def community_profile(project)            # public, no auth needed
-def file_contents(project, path)          # public, no auth needed
-def fork(project)                         # auth required
-def already_forked?(project)              # auth required
+# Reads — no auth
+def issues(project, labels:)
+def issue(project, number)
+def issue_comments(project, number)
+def community_profile(project)
+def file_contents(project, path)
+def search_issues(query)
+
+# Writes — auth required
+def fork(project)                         # idempotent, blocks until ready; → ForkResult
+def comment(project, issue:, body:)
+def pull_request_url(upstream, head_owner:, head_branch:, title:, body:)
+
+# Identity / URL helpers
+def viewer_login                          # auth required
+def clone_url(owner, repo)                # pure templating, no network
+def repo_url(owner, repo)                 # pure templating, no network
 ```
 
 `GitHubAdapter` checks for a cached token before any auth-required call. If there's no token, it raises `AuthRequired` with the host name. The TUI catches this through its message machinery and triggers the device flow. See [ADR-0001](adr/0001-just-in-time-auth.md).
 
-Adding a new host (GitLab, Codeberg) means writing a new adapter that conforms to the interface. The TUI doesn't change.
+`fork` is idempotent and blocking: if the viewer already owns the fork it returns `reused: true` without a POST; otherwise it POSTs and polls the host until the new fork is reachable. Higher layers don't see the polling. PR creation is not an API call — the adapter's `pull_request_url` returns a host-specific compare/MR URL that gets opened in the browser, so the user reviews the PR text before submitting. See [ADR-0011](adr/0011-host-adapter-owns-host-verbs.md).
+
+Adding a new host (GitLab, Codeberg) means writing a new adapter that conforms to the interface — including its own `clone_url` / `repo_url` / `pull_request_url` templates and its own readiness model for `fork`. Operations and CLI don't change.
+
+### `Operations::Fork` and `Operations::Clone`
+
+Two thin primitives sitting between the adapter and the CLI verbs. They're the bootstrap step `fix` and `fork` share:
+
+- `Operations::Fork` calls `adapter.fork(project)` and packages the result with the upstream URL for summary output.
+- `Operations::Clone` clones the fork into `<root>/<owner>/<repo>` (reusing an existing clone if one is there) and adds an `upstream` remote pointing at `adapter.clone_url(upstream)`.
+
+The "reuse if `.git` exists" rule and the upstream-remote convention are gem-contribute policy on top of git, not git primitives — that's why they live here rather than in the `Git` wrapper. See [ADR-0011](adr/0011-host-adapter-owns-host-verbs.md).
 
 ### `Auth`
 
