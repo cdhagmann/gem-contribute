@@ -4,18 +4,6 @@ require "optparse"
 
 module GemContribute
   module CLI
-    autoload :Scan, "gem_contribute/cli/scan"
-    autoload :Auth, "gem_contribute/cli/auth"
-    autoload :Config, "gem_contribute/cli/config"
-    autoload :Init, "gem_contribute/cli/init"
-    autoload :Issues, "gem_contribute/cli/issues"
-    autoload :Fix, "gem_contribute/cli/fix"
-    autoload :Fork, "gem_contribute/cli/fork"
-    autoload :Workflow, "gem_contribute/cli/workflow"
-    autoload :PostCloneHooks, "gem_contribute/cli/post_clone_hooks"
-    autoload :IssueAnnouncer, "gem_contribute/cli/issue_announcer"
-    autoload :Submit, "gem_contribute/cli/submit"
-    autoload :RateLimitFooter, "gem_contribute/cli/rate_limit_footer"
     USAGE = <<~USAGE
       Usage: gem-contribute <command> [options]
 
@@ -74,14 +62,10 @@ module GemContribute
       "issues" => ->(o, e) { Issues.new(stdout: o, stderr: e, adapter: github_adapter) },
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
-      "fork" => lambda { |o, e|
-        Fork.new(stdout: o, stderr: e,
-                 clone_root: GemContribute::Config.new.clone_root)
-      },
-      "fix" => lambda { |o, e|
+      "fork" => ->(o, e) { Fork.new(stdout: o, stderr: e, clone_root: GemContribute::Config.new.clone_root) },
+      "fix" => ->(o, e) {
         config = GemContribute::Config.new
-        Fix.new(stdout: o, stderr: e,
-                clone_root: config.clone_root, config: config)
+        Fix.new(stdout: o, stderr: e, clone_root: config.clone_root, config: config)
       },
       "submit" => ->(o, e) { Submit.new(stdout: o, stderr: e) }
     }.freeze

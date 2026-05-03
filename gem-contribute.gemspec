@@ -41,4 +41,5 @@ Gem::Specification.new do |spec|
   # Bundler ships with Ruby; declared explicitly because we use its lockfile parser.
   # See ADR-0002.
   spec.add_dependency "bundler", ">= 2.4"
+  spec.add_dependency "zeitwerk", "~> 2.6"
 end

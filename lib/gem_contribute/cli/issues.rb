@@ -10,6 +10,8 @@ module GemContribute
     # Issue numbers appear prominently so they can be passed directly to
     # `fix <gem>/<issue#>`.
     class Issues
+      include Workflow
+
       DEFAULT_LABEL = "good first issue"
 
       def initialize(stdout: $stdout, stderr: $stderr,
@@ -28,17 +30,7 @@ module GemContribute
         return print_usage if target.nil?
 
         @claim_index = IssueAnnouncer.fetch_claim_index(@adapter)
-
-        status = if target == "all"
-                   run_all
-                 else
-                   project = resolve_or_fail(target)
-                   if project.nil?
-                     1
-                   else
-                     list_issues(project)
-                   end
-                 end
+        status = target == "all" ? run_all : run_single(target)
         RateLimitFooter.print(adapter: @adapter, stdout: @stdout)
         status
       rescue AdapterError => e
@@ -51,6 +43,13 @@ module GemContribute
       def print_usage
         @stderr.puts "Usage: gem-contribute issues <gem|all>"
         2
+      end
+
+      def run_single(target)
+        project = resolve_target(target, verb: "issues")
+        return 1 if project.nil?
+
+        list_issues(project)
       end
 
       def run_all
@@ -83,23 +82,6 @@ module GemContribute
       rescue AdapterError => e
         @stderr.puts "  warning: #{project.gem_name}: #{e.message}"
         []
-      end
-
-      def resolve_or_fail(gem_name)
-        # gem-contribute isn't on RubyGems yet; short-circuit to the canonical
-        # self-project so the tool's own issues are reachable today.
-        return GemContribute::SELF_PROJECT if gem_name == GemContribute::SELF_PROJECT.gem_name
-
-        gem = LockedGem.new(name: gem_name, version: "*",
-                            source_type: :rubygems, source_uri: "https://rubygems.org/")
-        project = @resolver.resolve(gem)
-
-        if project.host != "github.com"
-          @stderr.puts "#{gem_name}: resolves to #{project.host} (only github.com is supported)"
-          return nil
-        end
-
-        project
       end
 
       def list_issues(project)

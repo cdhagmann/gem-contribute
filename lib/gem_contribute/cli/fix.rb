@@ -115,15 +115,19 @@ module GemContribute
       end
 
       def announce_or_skip(adapter, project, issue, viewer, was_resuming:, flags:)
-        return if flags[:no_comment]
-        return if was_resuming
-        return if viewer == project.owner
-        return unless @config.comment_on_fix?("#{project.owner}/#{project.repo}")
+        return unless should_announce?(project, viewer, was_resuming: was_resuming, flags: flags)
 
         IssueAnnouncer.announce_working(
           adapter: adapter, project: project, issue: issue,
           stdout: @stdout, stderr: @stderr
         )
+      end
+
+      def should_announce?(project, viewer, was_resuming:, flags:)
+        !flags[:no_comment] &&
+          !was_resuming &&
+          viewer != project.owner &&
+          @config.comment_on_fix?("#{project.owner}/#{project.repo}")
       end
     end
   end

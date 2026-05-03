@@ -18,6 +18,8 @@ module GemContribute
     # the user always reviews the PR text before submitting. The host-specific
     # URL is built by the adapter (ADR-0011).
     class Submit
+      include PlatformTools
+
       BRANCH_REGEX = %r{\Agem-contribute/issue-(\d+)\z}
 
       def initialize(stdout: $stdout, stderr: $stderr,
@@ -91,15 +93,15 @@ module GemContribute
 
       def parse_remote(name, required:)
         out, _err, status = Open3.capture3("git", "-C", @working_dir, "remote", "get-url", name)
-        unless status.success?
-          if required
-            @stderr.puts "submit: no `#{name}` remote configured. " \
-                         "Are you inside a git clone?"
-          end
-          return nil
-        end
+        return missing_remote_error(name) if !status.success? && required
+        return nil unless status.success?
 
         owner_repo_from_url(out.strip)
+      end
+
+      def missing_remote_error(name)
+        @stderr.puts "submit: no `#{name}` remote configured. Are you inside a git clone?"
+        nil
       end
 
       # Accepts both https://github.com/owner/repo(.git) and git@github.com:owner/repo.git
@@ -145,16 +147,6 @@ module GemContribute
         @stdout.puts "  #{url}"
       end
 
-      def default_browser_opener(uri)
-        cmd = case RbConfig::CONFIG["host_os"]
-              when /darwin/             then "open"
-              when /linux/              then "xdg-open"
-              when /mswin|mingw|cygwin/ then "start"
-              end
-        cmd && Kernel.system(cmd, uri)
-      rescue StandardError
-        false
-      end
     end
   end
 end

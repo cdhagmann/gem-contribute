@@ -10,6 +10,8 @@ module GemContribute
     #             validate it by hitting /user)
     #   logout  — drop the cached token for github.com
     class Auth
+      include PlatformTools
+
       USAGE = <<~USAGE
         Usage: gem-contribute auth <subcommand>
 
@@ -134,30 +136,6 @@ module GemContribute
           @stdout.puts "No cached token for #{DEFAULT_HOST}."
         end
         0
-      end
-
-      def default_browser_opener(uri)
-        cmd = case RbConfig::CONFIG["host_os"]
-              when /darwin/           then "open"
-              when /linux/            then "xdg-open"
-              when /mswin|mingw|cygwin/ then "start"
-              end
-        cmd && Kernel.system(cmd, uri)
-      rescue StandardError
-        false
-      end
-
-      def default_clipper(text)
-        case RbConfig::CONFIG["host_os"]
-        when /darwin/
-          IO.popen("pbcopy", "w") { |p| p.write(text) }
-          true
-        when /linux/
-          IO.popen(["xclip", "-selection", "clipboard"], "w") { |p| p.write(text) }
-          true
-        end
-      rescue StandardError
-        false
       end
     end
   end
