@@ -7,6 +7,10 @@ require_relative "gem_contribute/errors"
 loader = Zeitwerk::Loader.for_gem
 loader.ignore("#{__dir__}/gem_contribute/version.rb")
 loader.ignore("#{__dir__}/gem_contribute/errors.rb")
+loader.inflector.inflect(
+  "cli" => "CLI",
+  "github_adapter" => "GitHubAdapter"
+)
 loader.setup
 
 module GemContribute
