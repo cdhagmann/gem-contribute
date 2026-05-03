@@ -2,7 +2,8 @@
 
 RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
   let(:cache) { GemContribute::Cache.new(root: Dir.mktmpdir, ttl: { "issues" => 3600, "repos" => 3600, "files" => 3600 }) }
-  let(:adapter) { described_class.new(cache: cache) }
+  let(:sleeper) { ->(_s) {} }
+  let(:adapter) { described_class.new(cache: cache, sleeper: sleeper) }
   let(:project) do
     GemContribute::Project.new(
       gem_name: "sidekiq",
@@ -73,15 +74,9 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
     end
   end
 
-  describe "#already_forked? without a token" do
+  describe "#comment without a token" do
     it "raises AuthRequired" do
-      expect { adapter.already_forked?(project) }.to raise_error(GemContribute::AuthRequired)
-    end
-  end
-
-  describe "#comment_on_issue without a token" do
-    it "raises AuthRequired" do
-      expect { adapter.comment_on_issue(project, 1, "x") }.to raise_error(GemContribute::AuthRequired)
+      expect { adapter.comment(project, issue: 1, body: "x") }.to raise_error(GemContribute::AuthRequired)
     end
   end
 
@@ -92,10 +87,39 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
   end
 
   context "with a token" do
-    let(:adapter) { described_class.new(cache: cache, token: "gho_test") }
+    let(:adapter) { described_class.new(cache: cache, sleeper: sleeper, token: "gho_test") }
+
+    before do
+      stub_request(:get, "https://api.github.com/user")
+        .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                   body: JSON.dump("login" => "alice"))
+    end
 
     describe "#fork" do
-      it "POSTs to /repos/:owner/:repo/forks and returns the parsed body" do
+      it "skips the POST and returns reused: true when the viewer already owns the fork" do
+        stub_request(:get, "https://api.github.com/repos/alice/sidekiq")
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: JSON.dump("name" => "sidekiq"))
+
+        result = adapter.fork(project)
+        expect(result).to have_attributes(
+          clone_url: "https://github.com/alice/sidekiq.git",
+          fork_url: "https://github.com/alice/sidekiq",
+          viewer: "alice",
+          reused: true
+        )
+        expect(WebMock).not_to have_requested(:post, %r{/forks})
+      end
+
+      it "POSTs the fork, polls until ready, and returns reused: false when no fork exists yet",
+         :aggregate_failures do
+        stub_request(:get, "https://api.github.com/repos/alice/sidekiq")
+          .to_return(
+            { status: 404 }, # initial existence check
+            { status: 404 }, # first readiness poll: still propagating
+            { status: 200, headers: { "Content-Type" => "application/json" },
+              body: JSON.dump("name" => "sidekiq") } # second poll: live
+          )
         stub_request(:post, "https://api.github.com/repos/sidekiq/sidekiq/forks")
           .with(headers: { "Authorization" => "Bearer gho_test" })
           .to_return(
@@ -103,60 +127,33 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
             headers: { "Content-Type" => "application/json" },
             body: JSON.dump("name" => "sidekiq", "owner" => { "login" => "alice" },
                             "clone_url" => "https://github.com/alice/sidekiq.git",
-                            "default_branch" => "main")
+                            "html_url" => "https://github.com/alice/sidekiq")
           )
 
-        body = adapter.fork(project)
-        expect(body["clone_url"]).to eq("https://github.com/alice/sidekiq.git")
-        expect(body["owner"]["login"]).to eq("alice")
-      end
-    end
-
-    describe "#already_forked?" do
-      before do
-        stub_request(:get, "https://api.github.com/user")
-          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
-                     body: JSON.dump("login" => "alice"))
+        result = adapter.fork(project)
+        expect(result.reused).to be(false)
+        expect(result.clone_url).to eq("https://github.com/alice/sidekiq.git")
+        expect(WebMock).to have_requested(:post, %r{/forks}).once
       end
 
-      it "returns true when GET /repos/:viewer/:repo succeeds" do
-        stub_request(:get, "https://api.github.com/repos/alice/sidekiq")
-          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
-                     body: JSON.dump("name" => "sidekiq"))
-        expect(adapter.already_forked?(project)).to be(true)
-      end
-
-      it "returns false on 404" do
+      it "raises AdapterError when the fork never becomes reachable" do
         stub_request(:get, "https://api.github.com/repos/alice/sidekiq").to_return(status: 404)
-        expect(adapter.already_forked?(project)).to be(false)
+        stub_request(:post, "https://api.github.com/repos/sidekiq/sidekiq/forks")
+          .to_return(status: 202, headers: { "Content-Type" => "application/json" },
+                     body: JSON.dump("clone_url" => "https://github.com/alice/sidekiq.git"))
+
+        expect { adapter.fork(project) }
+          .to raise_error(GemContribute::AdapterError, /not reachable/)
       end
     end
 
     describe "#viewer_login" do
       it "returns the authenticated user's login from GET /user" do
-        stub_request(:get, "https://api.github.com/user")
-          .with(headers: { "Authorization" => "Bearer gho_test" })
-          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
-                     body: JSON.dump("login" => "alice"))
         expect(adapter.viewer_login).to eq("alice")
       end
     end
 
-    describe "#fork_ready?" do
-      it "returns true when GET /repos/:viewer/:name returns 200" do
-        stub_request(:get, "https://api.github.com/repos/alice/sidekiq")
-          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
-                     body: JSON.dump("name" => "sidekiq"))
-        expect(adapter.fork_ready?("alice", "sidekiq")).to be(true)
-      end
-
-      it "returns false on 404 (still propagating)" do
-        stub_request(:get, "https://api.github.com/repos/alice/sidekiq").to_return(status: 404)
-        expect(adapter.fork_ready?("alice", "sidekiq")).to be(false)
-      end
-    end
-
-    describe "#comment_on_issue" do
+    describe "#comment" do
       it "POSTs to /repos/:owner/:repo/issues/:n/comments and returns the parsed body" do
         stub_request(:post, "https://api.github.com/repos/sidekiq/sidekiq/issues/1234/comments")
           .with(headers: { "Authorization" => "Bearer gho_test" },
@@ -168,7 +165,7 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
                             "html_url" => "https://github.com/sidekiq/sidekiq/issues/1234#issuecomment-999")
           )
 
-        body = adapter.comment_on_issue(project, 1234, "Hello world")
+        body = adapter.comment(project, issue: 1234, body: "Hello world")
         expect(body["id"]).to eq(999)
         expect(body["body"]).to eq("Hello world")
       end
@@ -218,6 +215,56 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
       adapter.search_issues("anything")
       adapter.search_issues("anything")
       expect(WebMock).to have_requested(:get, %r{api\.github\.com/search/issues}).once
+    end
+  end
+
+  describe "#pull_request_url" do
+    let(:upstream) do
+      GemContribute::Project.new(
+        gem_name: "sidekiq", host: "github.com",
+        owner: "sidekiq", repo: "sidekiq", metadata: {}
+      )
+    end
+
+    it "uses the cross-fork compare form when head_owner != upstream.owner" do
+      url = adapter.pull_request_url(
+        upstream,
+        head_owner: "alice", head_branch: "gem-contribute/issue-42",
+        title: "Fix #42: Improve batching",
+        body: "Closes #42."
+      )
+      expect(url).to start_with("https://github.com/sidekiq/sidekiq/compare/alice:gem-contribute/issue-42?")
+      expect(url).to include("expand=1")
+      expect(url).to include(URI.encode_www_form_component("Fix #42: Improve batching"))
+    end
+
+    it "uses the same-repo compare form when head_owner == upstream.owner" do
+      same_repo = GemContribute::Project.new(
+        gem_name: "x", host: "github.com", owner: "alice", repo: "sidekiq", metadata: {}
+      )
+      url = adapter.pull_request_url(
+        same_repo,
+        head_owner: "alice", head_branch: "gem-contribute/issue-42",
+        title: "Fix #42", body: "Closes #42."
+      )
+      expect(url).to start_with("https://github.com/alice/sidekiq/compare/gem-contribute/issue-42?")
+      expect(url).not_to include("alice:gem-contribute/issue-42")
+    end
+
+    it "raises AdapterError when the upstream is not on github.com" do
+      gitlab = GemContribute::Project.new(
+        gem_name: "x", host: "gitlab.com", owner: "x", repo: "y", metadata: {}
+      )
+      expect do
+        adapter.pull_request_url(gitlab, head_owner: "a", head_branch: "b", title: "t", body: "b")
+      end.to raise_error(GemContribute::AdapterError, /github/i)
+    end
+  end
+
+  describe "#clone_url and #repo_url" do
+    it "templates the host-specific URLs without auth or network" do
+      expect(adapter.clone_url("alice", "sidekiq")).to eq("https://github.com/alice/sidekiq.git")
+      expect(adapter.repo_url("alice", "sidekiq")).to eq("https://github.com/alice/sidekiq")
     end
   end
 

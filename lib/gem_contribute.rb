@@ -24,9 +24,17 @@ module GemContribute
   autoload :Auth, "gem_contribute/auth"
   autoload :Config, "gem_contribute/config"
   autoload :TokenStore, "gem_contribute/token_store"
+  autoload :Git, "gem_contribute/git"
   autoload :CLI, "gem_contribute/cli"
 
   module HostAdapters
     autoload :GitHubAdapter, "gem_contribute/host_adapters/github_adapter"
+  end
+
+  # Composable bootstrap primitives. See ADR-0011: HostAdapter owns host
+  # verbs; Operations compose them with `Git`; CLI verbs compose Operations.
+  module Operations
+    autoload :Fork, "gem_contribute/operations/fork"
+    autoload :Clone, "gem_contribute/operations/clone"
   end
 end

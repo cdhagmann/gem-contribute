@@ -7,8 +7,8 @@ RSpec.describe GemContribute::CLI::Submit do
   let(:stderr) { StringIO.new }
   let(:tmpdir) { Dir.mktmpdir("gem-contribute-submit-") }
   let(:store) { GemContribute::TokenStore.new(path: File.join(tmpdir, "auth.json")) }
-  let(:git) { instance_double(GemContribute::CLI::Git) }
-  let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }
+  let(:git) { instance_double(GemContribute::Git) }
+  let(:adapter) { GemContribute::HostAdapters::GitHubAdapter.new(token: "gho_test") }
   let(:opener) { instance_double(Proc) }
   let(:cli) do
     described_class.new(
@@ -45,8 +45,9 @@ RSpec.describe GemContribute::CLI::Submit do
 
   it "falls back to a same-repo compare URL when no upstream remote is configured" do
     Dir.chdir(tmpdir) { system("git remote remove upstream") }
-    allow(adapter).to receive(:issue).with("alice", "sidekiq", 42)
-                                     .and_return("title" => "Improve batching")
+    allow(adapter).to receive(:issue)
+      .with(have_attributes(owner: "alice", repo: "sidekiq"), 42)
+      .and_return("title" => "Improve batching")
 
     expect(cli.run([])).to eq(0)
 
@@ -66,8 +67,9 @@ RSpec.describe GemContribute::CLI::Submit do
 
   it "pushes the branch, builds a compare URL with title prefilled, and opens the browser",
      :aggregate_failures do
-    allow(adapter).to receive(:issue).with("sidekiq", "sidekiq", 42)
-                                     .and_return("title" => "Improve batching")
+    allow(adapter).to receive(:issue)
+      .with(have_attributes(owner: "sidekiq", repo: "sidekiq"), 42)
+      .and_return("title" => "Improve batching")
 
     expect(cli.run([])).to eq(0)
     expect(git).to have_received(:push).with(tmpdir, "origin", "gem-contribute/issue-42")

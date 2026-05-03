@@ -1,20 +1,13 @@
 # frozen_string_literal: true
 
-require "open3"
-
 module GemContribute
   module CLI
     # `gem-contribute fix <gem>/<issue#> [-e] [-a] [--no-comment]`
     #
-    # The issue-tied path: ForkClone (fork + clone + upstream remote),
+    # The issue-tied path: bootstrap a fork+clone (delegated to `CLI::Fork`'s
+    # primitive, which composes `Operations::Fork` and `Operations::Clone`),
     # then branch to `gem-contribute/issue-<N>`, post a "working on this"
     # comment (skippable), optionally open the user's editor or AI tool.
-    #
-    # `gem-contribute fork <gem>` is the look-around-first counterpart;
-    # both compose the same `ForkClone` primitive.
-    #
-    # The shell-outs use Open3 with explicit args (not strings) to avoid any
-    # shell-injection surface.
     class Fix
       include Workflow
 
@@ -27,9 +20,8 @@ module GemContribute
                      resolver: Resolver.new,
                      store: TokenStore.new,
                      adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
-                     git: Git.new,
+                     git: GemContribute::Git.new,
                      clone_root: DEFAULT_CLONE_ROOT,
-                     sleeper: ->(s) { Kernel.sleep(s) },
                      post_clone_hooks: nil,
                      config: nil,
                      fork: nil)
@@ -46,7 +38,7 @@ module GemContribute
                                  resolver: resolver, store: store,
                                  adapter_factory: adapter_factory,
                                  git: @git, clone_root: clone_root,
-                                 sleeper: sleeper, post_clone_hooks: @post_clone_hooks)
+                                 post_clone_hooks: @post_clone_hooks)
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -90,24 +82,24 @@ module GemContribute
       end
 
       def execute(adapter, project, issue, flags)
-        viewer = adapter.viewer_login
         was_resuming = branch_exists_locally?(project, issue)
-        local_path = @fork.call(adapter, project, viewer)
+        local_path, fork_info = @fork.bootstrap(adapter, project)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
         @git.checkout_branch(local_path, branch_name)
 
-        print_summary(local_path, branch_name, project, viewer)
-        announce_or_skip(adapter, project, issue, viewer, was_resuming: was_resuming, flags: flags)
+        print_summary(local_path, branch_name, fork_info)
+        announce_or_skip(adapter, project, issue, fork_info.viewer,
+                         was_resuming: was_resuming, flags: flags)
         @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
         0
       end
 
-      def print_summary(local_path, branch_name, project, viewer)
+      def print_summary(local_path, branch_name, fork_info)
         @stdout.puts "Forked, cloned, and branched."
         @stdout.puts "  path:   #{local_path}"
         @stdout.puts "  branch: #{branch_name}"
-        @stdout.puts "  upstream: https://github.com/#{project.owner}/#{project.repo}"
-        @stdout.puts "  fork:     https://github.com/#{viewer}/#{project.repo}"
+        @stdout.puts "  upstream: #{fork_info.upstream_url}"
+        @stdout.puts "  fork:     #{fork_info.fork_url}"
         @stdout.puts
         @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
       end
@@ -132,50 +124,6 @@ module GemContribute
           adapter: adapter, project: project, issue: issue,
           stdout: @stdout, stderr: @stderr
         )
-      end
-    end
-
-    # Thin wrapper around git so the spec can swap in a fake without shelling
-    # out. The real implementation uses Open3 with arg-list invocation — no
-    # shell, so no injection surface.
-    class Git
-      def clone(url, target)
-        run!(["git", "clone", url, target])
-      end
-
-      def checkout_branch(path, branch)
-        run!(["git", "-C", path, "checkout", "-b", branch])
-      end
-
-      def add_remote(path, name, url)
-        # Idempotent: if the remote already exists (e.g. reusing a clone)
-        # we silently succeed rather than fail the whole flow.
-        return if remote_exists?(path, name)
-
-        run!(["git", "-C", path, "remote", "add", name, url])
-      end
-
-      def push(path, remote, branch)
-        run!(["git", "-C", path, "push", "-u", remote, branch])
-      end
-
-      def remote_exists?(path, name)
-        out, _err, status = Open3.capture3("git", "-C", path, "remote")
-        status.success? && out.split("\n").include?(name)
-      end
-
-      def branch_exists?(path, branch)
-        _out, _err, status = Open3.capture3("git", "-C", path,
-                                            "rev-parse", "--verify", "--quiet",
-                                            "refs/heads/#{branch}")
-        status.success?
-      end
-
-      def run!(argv)
-        _stdout, stderr_str, status = Open3.capture3(*argv)
-        return if status.success?
-
-        raise GemContribute::AdapterError, "git #{argv[1..].join(" ")} failed: #{stderr_str.strip}"
       end
     end
   end

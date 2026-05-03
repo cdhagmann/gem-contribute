@@ -6,18 +6,17 @@ require "uri"
 
 module GemContribute
   module HostAdapters
-    # GitHub adapter. v0.1 implements the unauthenticated read methods
-    # (issues, community_profile, file_contents). The auth-required methods
-    # raise AuthRequired so the calling layer (CLI in Stage 2, TUI in Stage 3)
-    # can trigger device flow. See ADR-0001 and ADR-0004.
+    # GitHub adapter. Implements the `HostAdapter` interface for github.com.
+    # Public read methods work anonymously; auth-required methods raise
+    # `AuthRequired` without a cached token (ADR-0001 / ADR-0004).
     #
-    # `token` is optional and reserved for Stage 2; when present it's sent as
-    # `Authorization: Bearer …` to lift the rate limit and unlock fork/etc.
+    # `token` is optional. When present it's sent as `Authorization: Bearer …`
+    # to lift the rate limit and unlock fork / comment / etc.
     #
     # Class length: this adapter wraps a growing surface area of GitHub
-    # endpoints (issues, comments, forks, community profile, contents). The
-    # 150-line metric isn't a useful constraint here — we'd just split into
-    # arbitrary sub-modules — so it's disabled below with this rationale.
+    # endpoints. The 150-line metric isn't a useful constraint here — we'd
+    # just split into arbitrary sub-modules — so it's disabled below with
+    # this rationale.
     # rubocop:disable Metrics/ClassLength
     class GitHubAdapter < HostAdapter
       API_BASE = "https://api.github.com"
@@ -25,23 +24,30 @@ module GemContribute
       API_VERSION = "2022-11-28"
       MAX_REDIRECTS = 3
 
+      # GitHub's POST /forks returns 202 immediately; the fork resource may
+      # 404 for a few seconds while propagation finishes. Bound the wait at
+      # 12 × 5s = 60s.
+      FORK_READINESS_RETRIES = 12
+      FORK_READINESS_INTERVAL = 5
+
       RateLimit = Data.define(:limit, :remaining, :reset_at)
 
       attr_reader :rate_limit
 
-      def initialize(cache: Cache.new, http: Net::HTTP, token: nil)
+      def initialize(cache: Cache.new, http: Net::HTTP, token: nil,
+                     sleeper: ->(s) { Kernel.sleep(s) })
         super()
         @cache = cache
         @http = http
         @token = token
+        @sleeper = sleeper
         @rate_limit = nil
       end
 
       # @return [Hash] a single issue's full payload (uncached — submit only).
-      def issue(owner, repo, number)
-        ensure_known_host!(Project.new(gem_name: repo, host: "github.com",
-                                       owner: owner, repo: repo, metadata: {}))
-        get_json("/repos/#{owner}/#{repo}/issues/#{number}")
+      def issue(project, number)
+        ensure_known_host!(project)
+        get_json("/repos/#{project.owner}/#{project.repo}/issues/#{number}")
       end
 
       # @return [Array<Hash>] open issues filtered to the given labels (if any)
@@ -82,35 +88,24 @@ module GemContribute
         @cache.write("files", cache_key, body)
       end
 
-      # POST /repos/:owner/:repo/forks. Returns the fork's parsed body
-      # (clone_url, owner.login, name, etc.). GitHub responds 202 (accepted)
-      # immediately even if the fork is still propagating; callers that need
-      # to clone right after may want to poll readiness — see
-      # `fork_ready?` below.
+      # Idempotent, blocking fork. If the viewer already owns a fork at the
+      # same name, returns it as `reused: true` without a POST. Otherwise
+      # POSTs to /repos/:owner/:repo/forks and polls until the fork is
+      # reachable. Returns a `HostAdapter::ForkResult`.
       def fork(project)
         raise AuthRequired, "github.com" unless @token
 
         ensure_known_host!(project)
-        post_json("/repos/#{project.owner}/#{project.repo}/forks")
-      end
-
-      # GET /repos/:viewer/:repo. True iff the viewer already owns a fork of
-      # the upstream repo at the same name.
-      def already_forked?(project)
-        raise AuthRequired, "github.com" unless @token
-
-        ensure_known_host!(project)
         viewer = viewer_login
-        get_json("/repos/#{viewer}/#{project.repo}")
-        true
-      rescue AdapterError => e
-        return false if e.message.include?("404")
+        return existing_fork_result(viewer, project) if fork_exists?(viewer, project.repo)
 
-        raise
+        body = post_json("/repos/#{project.owner}/#{project.repo}/forks")
+        wait_until_fork_ready(viewer, project.repo)
+        new_fork_result(viewer, project, body)
       end
 
-      # GET /user. Used by `auth status` and `already_forked?`. Returns the
-      # authenticated user's login string (e.g. "cdhagmann").
+      # GET /user. Used by `auth status` and internally by `fork`. Returns
+      # the authenticated user's login string (e.g. "cdhagmann").
       def viewer_login
         raise AuthRequired, "github.com" unless @token
 
@@ -118,39 +113,25 @@ module GemContribute
         body.fetch("login")
       end
 
-      # GET /repos/:viewer/:repo, returning true once GitHub has finished
-      # provisioning the fork. The fork endpoint returns 202 immediately;
-      # the resource may 404 for a few seconds before becoming live.
-      def fork_ready?(viewer, repo_name)
-        raise AuthRequired, "github.com" unless @token
-
-        get_json("/repos/#{viewer}/#{repo_name}")
-        true
-      rescue AdapterError => e
-        return false if e.message.include?("404")
-
-        raise
-      end
-
       # POST /repos/:owner/:repo/issues/:n/comments. Returns the created
       # comment payload (id, body, html_url, ...). Used by `fix` to post
       # the "working on this" announcement.
-      def comment_on_issue(project, issue_number, body)
+      def comment(project, issue:, body:)
         raise AuthRequired, "github.com" unless @token
 
         ensure_known_host!(project)
-        post_json("/repos/#{project.owner}/#{project.repo}/issues/#{issue_number}/comments",
+        post_json("/repos/#{project.owner}/#{project.repo}/issues/#{issue}/comments",
                   { "body" => body })
       end
 
       # GET /repos/:owner/:repo/issues/:n/comments. Returns an array of
       # comment payloads. Uncached (callers may want fresh data, e.g. to
       # check for an idempotency marker).
-      def issue_comments(project, issue_number)
+      def issue_comments(project, number)
         raise AuthRequired, "github.com" unless @token
 
         ensure_known_host!(project)
-        get_json("/repos/#{project.owner}/#{project.repo}/issues/#{issue_number}/comments")
+        get_json("/repos/#{project.owner}/#{project.repo}/issues/#{number}/comments")
       end
 
       # GET /search/issues. Wraps GitHub's issue search; works without auth
@@ -168,7 +149,72 @@ module GemContribute
         @cache.write("issues", cache_key, items)
       end
 
+      # Builds GitHub's pre-filled compare URL. The browser-based PR flow
+      # (ADR-0011) means the user reviews the title/body before submitting,
+      # so this method just templates — it doesn't post.
+      def pull_request_url(upstream, head_owner:, head_branch:, title:, body:)
+        ensure_known_host!(upstream)
+        same_repo = head_owner == upstream.owner
+        head = same_repo ? head_branch : "#{head_owner}:#{head_branch}"
+        params = { "expand" => "1", "title" => title, "body" => body }
+        "https://github.com/#{upstream.owner}/#{upstream.repo}/compare/#{head}?" \
+          "#{URI.encode_www_form(params)}"
+      end
+
+      # Pure URL templating — no auth, no network. Used by Operations to
+      # construct the `upstream` remote and by CLI verbs for summary output.
+      def clone_url(owner, repo)
+        "https://github.com/#{owner}/#{repo}.git"
+      end
+
+      def repo_url(owner, repo)
+        "https://github.com/#{owner}/#{repo}"
+      end
+
       private
+
+      def existing_fork_result(viewer, project)
+        ForkResult.new(
+          clone_url: clone_url(viewer, project.repo),
+          fork_url: repo_url(viewer, project.repo),
+          viewer: viewer,
+          reused: true
+        )
+      end
+
+      def new_fork_result(viewer, project, body)
+        ForkResult.new(
+          clone_url: body.fetch("clone_url", clone_url(viewer, project.repo)),
+          fork_url: body.fetch("html_url", repo_url(viewer, project.repo)),
+          viewer: viewer,
+          reused: false
+        )
+      end
+
+      # GET /repos/:viewer/:repo. True iff the viewer already owns a repo at
+      # that name (which, for the fork flow, means an existing fork of the
+      # upstream).
+      def fork_exists?(viewer, repo_name)
+        get_json("/repos/#{viewer}/#{repo_name}")
+        true
+      rescue AdapterError => e
+        return false if e.message.include?("404")
+
+        raise
+      end
+
+      def wait_until_fork_ready(viewer, repo_name)
+        ready = FORK_READINESS_RETRIES.times.any? do |i|
+          break true if fork_exists?(viewer, repo_name)
+
+          @sleeper.call(FORK_READINESS_INTERVAL) unless i == FORK_READINESS_RETRIES - 1
+          false
+        end
+        return if ready
+
+        raise AdapterError,
+              "fork not reachable after #{FORK_READINESS_RETRIES * FORK_READINESS_INTERVAL}s"
+      end
 
       def issue_cache_key(project, labels)
         label_segment = Array(labels).sort.join(",")

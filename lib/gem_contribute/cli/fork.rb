@@ -1,56 +1,36 @@
 # frozen_string_literal: true
 
-require "fileutils"
-
 module GemContribute
   module CLI
-    # `gem-contribute fork <gem|owner/repo> [-e] [-a]` and the underlying
-    # bootstrap primitive used by `fix`.
-    #
-    # Two faces, same operation:
-    # - `Fork#run(argv)` — the CLI verb. Resolve, fork+clone, summary, hooks.
-    # - `Fork#call(adapter, project, viewer)` — the primitive. Idempotent
-    #   fork (or reuse) + clone (or reuse) + upstream remote, returns the
-    #   local clone path. `Fix` delegates to this for its bootstrap step.
+    # `gem-contribute fork <gem|owner/repo> [-e] [-a]`. Resolve the target,
+    # bootstrap a fork+clone via `Operations::Fork` + `Operations::Clone`,
+    # print a summary, run post-clone hooks. The CLI verb is a thin
+    # composition; the host-API ceremony lives in the adapter and the
+    # filesystem policy lives in Operations (ADR-0011).
     class Fork
       include Workflow
 
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
-      FORK_READINESS_RETRIES = 12 # 12 × 5s = 60s ceiling
-      FORK_READINESS_INTERVAL = 5
 
       # rubocop:disable Metrics/ParameterLists
       def initialize(stdout: $stdout, stderr: $stderr,
                      resolver: Resolver.new, store: TokenStore.new,
                      adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
-                     git: Git.new,
+                     git: GemContribute::Git.new,
                      clone_root: DEFAULT_CLONE_ROOT,
-                     sleeper: ->(s) { Kernel.sleep(s) },
-                     post_clone_hooks: nil)
+                     post_clone_hooks: nil,
+                     fork_op: nil, clone_op: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
         @store = store
         @adapter_factory = adapter_factory
-        @git = git
         @clone_root = clone_root
-        @sleeper = sleeper
         @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
+        @fork_op = fork_op || Operations::Fork.new(stdout: stdout)
+        @clone_op = clone_op || Operations::Clone.new(git: git, stdout: stdout)
       end
       # rubocop:enable Metrics/ParameterLists
-
-      # Public primitive. Idempotent: reuses an existing fork (via
-      # `already_forked?`) and an existing local clone (via the `.git`
-      # directory). Returns the local clone path.
-      def call(adapter, project, viewer)
-        clone_url = ensure_fork(adapter, project, viewer)
-        local_path = clone_into_root(project, clone_url)
-        # `submit` needs to know the canonical project to point the PR at.
-        # `upstream` follows the standard fork workflow convention.
-        @git.add_remote(local_path, "upstream",
-                        "https://github.com/#{project.owner}/#{project.repo}.git")
-        local_path
-      end
 
       def run(argv)
         with_workflow_rescues("fork") do
@@ -67,6 +47,16 @@ module GemContribute
 
           execute(adapter, project, flags)
         end
+      end
+
+      # The bootstrap primitive Fix shares: fork (or reuse) → clone (or
+      # reuse) → upstream remote. Returns `[local_path, fork_info]` where
+      # `fork_info` is an `Operations::Fork::Result`.
+      def bootstrap(adapter, project)
+        fork_info = @fork_op.call(adapter: adapter, project: project)
+        local_path = @clone_op.call(adapter: adapter, project: project,
+                                    fork_clone_url: fork_info.clone_url, root: @clone_root)
+        [local_path, fork_info]
       end
 
       private
@@ -90,63 +80,22 @@ module GemContribute
       end
 
       def execute(adapter, project, flags)
-        viewer = adapter.viewer_login
-        local_path = call(adapter, project, viewer)
+        local_path, fork_info = bootstrap(adapter, project)
 
-        print_summary(local_path, project, viewer)
+        print_summary(local_path, project, fork_info)
         @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
         0
       end
 
-      def print_summary(local_path, project, viewer)
+      def print_summary(local_path, project, fork_info)
         @stdout.puts "Forked and cloned. You're on the default branch."
         @stdout.puts "  path:     #{local_path}"
-        @stdout.puts "  upstream: https://github.com/#{project.owner}/#{project.repo}"
-        @stdout.puts "  fork:     https://github.com/#{viewer}/#{project.repo}"
+        @stdout.puts "  upstream: #{fork_info.upstream_url}"
+        @stdout.puts "  fork:     #{fork_info.fork_url}"
         @stdout.puts
         @stdout.puts "Next: cd #{local_path} && explore. When you pick an issue, " \
                      "`gem-contribute fix #{project.gem_name}/<issue#>` " \
                      "branches off the default."
-      end
-
-      # === Primitive helpers (private) ===
-
-      def ensure_fork(adapter, project, viewer)
-        if adapter.already_forked?(project)
-          @stdout.puts "You already have a fork at #{viewer}/#{project.repo}. Skipping fork."
-          return "https://github.com/#{viewer}/#{project.repo}.git"
-        end
-
-        @stdout.puts "Forking #{project.owner}/#{project.repo} → #{viewer}/#{project.repo}..."
-        body = adapter.fork(project)
-        wait_until_ready(adapter, viewer, project.repo)
-        body.fetch("clone_url")
-      end
-
-      def wait_until_ready(adapter, viewer, name)
-        ready = FORK_READINESS_RETRIES.times.any? do |i|
-          break true if adapter.fork_ready?(viewer, name)
-
-          @sleeper.call(FORK_READINESS_INTERVAL) unless i == FORK_READINESS_RETRIES - 1
-          false
-        end
-        return if ready
-
-        raise GemContribute::AdapterError,
-              "fork not reachable after #{FORK_READINESS_RETRIES * FORK_READINESS_INTERVAL}s"
-      end
-
-      def clone_into_root(project, clone_url)
-        target = File.join(@clone_root, project.owner, project.repo)
-        if File.directory?(File.join(target, ".git"))
-          @stdout.puts "Reusing existing clone at #{target}."
-          return target
-        end
-
-        FileUtils.mkdir_p(File.dirname(target))
-        @stdout.puts "Cloning into #{target}..."
-        @git.clone(clone_url, target)
-        target
       end
     end
   end

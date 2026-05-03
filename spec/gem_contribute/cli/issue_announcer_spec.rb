@@ -15,7 +15,7 @@ RSpec.describe GemContribute::CLI::IssueAnnouncer do
 
   describe ".announce_working" do
     it "posts a comment and returns :posted when no marker is present" do
-      allow(adapter).to receive_messages(issue_comments: [], comment_on_issue: { "id" => 1 })
+      allow(adapter).to receive_messages(issue_comments: [], comment: { "id" => 1 })
 
       result = described_class.announce_working(
         adapter: adapter, project: project, issue: "1234",
@@ -23,8 +23,8 @@ RSpec.describe GemContribute::CLI::IssueAnnouncer do
       )
 
       expect(result).to eq(:posted)
-      expect(adapter).to have_received(:comment_on_issue)
-        .with(project, "1234", a_string_including(described_class::WORKING_MARKER))
+      expect(adapter).to have_received(:comment)
+        .with(project, issue: "1234", body: a_string_including(described_class::WORKING_MARKER))
       expect(stdout.string).to include("Posted 'working on this' comment to issue #1234")
     end
 
@@ -40,12 +40,12 @@ RSpec.describe GemContribute::CLI::IssueAnnouncer do
       )
 
       expect(result).to eq(:skipped)
-      expect(adapter).not_to have_received(:comment_on_issue) if defined?(adapter.comment_on_issue)
+      expect(adapter).not_to have_received(:comment) if defined?(adapter.comment)
     end
 
     it "soft-fails to :failed when the post raises AdapterError" do
       allow(adapter).to receive(:issue_comments).and_return([])
-      allow(adapter).to receive(:comment_on_issue)
+      allow(adapter).to receive(:comment)
         .and_raise(GemContribute::AdapterError, "GitHub returned 422")
 
       result = described_class.announce_working(
@@ -61,7 +61,7 @@ RSpec.describe GemContribute::CLI::IssueAnnouncer do
     it "treats an AdapterError on the comment-listing call as 'not announced' and still posts" do
       allow(adapter).to receive(:issue_comments)
         .and_raise(GemContribute::AdapterError, "GitHub returned 500")
-      allow(adapter).to receive(:comment_on_issue).and_return("id" => 2)
+      allow(adapter).to receive(:comment).and_return("id" => 2)
 
       result = described_class.announce_working(
         adapter: adapter, project: project, issue: "1234",
@@ -69,7 +69,7 @@ RSpec.describe GemContribute::CLI::IssueAnnouncer do
       )
 
       expect(result).to eq(:posted)
-      expect(adapter).to have_received(:comment_on_issue)
+      expect(adapter).to have_received(:comment)
     end
   end
 

@@ -16,6 +16,7 @@ Format: [Michael Nygard's template](https://github.com/joelparkerhenderson/archi
 - [0008 — Use Rooibos for the TUI layer](0008-rooibos-tui-framework.md) — superseded by 0010
 - [0009 — Top-level namespace is `GemContribute`](0009-top-level-namespace.md)
 - [0010 — Use Charm-Ruby (bubbletea + lipgloss) for the TUI layer](0010-charm-ruby-tui-framework.md)
+- [0011 — HostAdapter owns host verbs; Operations compose them; CLI verbs compose Operations](0011-host-adapter-owns-host-verbs.md)
 
 ## When to add an ADR
 

@@ -10,7 +10,8 @@ RSpec.describe GemContribute::CLI::Fix do
   let(:store) { GemContribute::TokenStore.new(path: File.join(tmpdir, "auth.json")) }
   let(:resolver) { instance_double(GemContribute::Resolver) }
   let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }
-  let(:git) { instance_double(GemContribute::CLI::Git) }
+  let(:git) { instance_double(GemContribute::Git) }
+  let(:fork_cli) { instance_double(GemContribute::CLI::Fork) }
   let(:clone_root) { File.join(tmpdir, "code", "oss") }
   let(:config) { GemContribute::Config.new(path: File.join(tmpdir, "config.yml")) }
   let(:cli) do
@@ -19,8 +20,7 @@ RSpec.describe GemContribute::CLI::Fix do
       resolver: resolver, store: store,
       adapter_factory: ->(**) { adapter },
       git: git, clone_root: clone_root,
-      sleeper: ->(_s) {},
-      config: config
+      config: config, fork: fork_cli
     )
   end
 
@@ -30,14 +30,22 @@ RSpec.describe GemContribute::CLI::Fix do
       metadata: {}
     )
   end
+  let(:target) { File.join(clone_root, "sidekiq", "sidekiq") }
+  let(:fork_info) do
+    GemContribute::Operations::Fork::Result.new(
+      clone_url: "https://github.com/alice/sidekiq.git",
+      fork_url: "https://github.com/alice/sidekiq",
+      upstream_url: "https://github.com/sidekiq/sidekiq",
+      viewer: "alice", reused: false
+    )
+  end
 
   before do
     store.store("github.com", access_token: "gho_test")
     allow(resolver).to receive(:resolve).and_return(project)
-    allow(git).to receive(:clone)
     allow(git).to receive(:checkout_branch)
-    allow(git).to receive(:add_remote)
     allow(git).to receive(:branch_exists?).and_return(false)
+    allow(fork_cli).to receive(:bootstrap).with(adapter, project).and_return([target, fork_info])
     allow(GemContribute::CLI::IssueAnnouncer).to receive(:announce_working).and_return(:posted)
   end
 
@@ -63,60 +71,20 @@ RSpec.describe GemContribute::CLI::Fix do
       resolver: resolver, store: store,
       adapter_factory: ->(**) { adapter },
       git: git, clone_root: nil,
-      sleeper: ->(_s) {}
+      fork: fork_cli
     )
     expect(cli_no_clone_root.run(["sidekiq/1"])).to eq(1)
     expect(stderr.string).to include("gem-contribute init")
   end
 
-  it "forks, polls until ready, clones, and branches when no fork exists yet", :aggregate_failures do
-    allow(adapter).to receive(:viewer_login).and_return("alice")
-    allow(adapter).to receive(:already_forked?).with(project).and_return(false)
-    allow(adapter).to receive(:fork).with(project).and_return(
-      "name" => "sidekiq",
-      "owner" => { "login" => "alice" },
-      "clone_url" => "https://github.com/alice/sidekiq.git"
-    )
-    # First poll says still propagating, second says ready.
-    allow(adapter).to receive(:fork_ready?).and_return(false, true)
-
-    target = File.join(clone_root, "sidekiq", "sidekiq")
-
+  it "delegates the fork+clone bootstrap and then branches", :aggregate_failures do
     expect(cli.run(["sidekiq/1234"])).to eq(0)
-    expect(git).to have_received(:clone).with("https://github.com/alice/sidekiq.git", target)
+    expect(fork_cli).to have_received(:bootstrap).with(adapter, project)
     expect(git).to have_received(:checkout_branch).with(target, "gem-contribute/issue-1234")
-    expect(git).to have_received(:add_remote).with(target, "upstream", "https://github.com/sidekiq/sidekiq.git")
-    expect(stdout.string).to include("Forking sidekiq/sidekiq")
     expect(stdout.string).to include(target)
     expect(stdout.string).to include("gem-contribute/issue-1234")
-    expect(adapter).to have_received(:fork).once
-  end
-
-  it "skips fork creation but still clones and branches when the user already has a fork" do
-    allow(adapter).to receive(:viewer_login).and_return("alice")
-    allow(adapter).to receive(:already_forked?).with(project).and_return(true)
-    allow(adapter).to receive(:fork)
-
-    target = File.join(clone_root, "sidekiq", "sidekiq")
-
-    expect(cli.run(["sidekiq/99"])).to eq(0)
-    expect(git).to have_received(:clone).with("https://github.com/alice/sidekiq.git", target)
-    expect(git).to have_received(:checkout_branch).with(target, "gem-contribute/issue-99")
-    expect(adapter).not_to have_received(:fork)
-    expect(stdout.string).to include("already have a fork")
-  end
-
-  it "reuses an existing local clone instead of re-cloning" do
-    allow(adapter).to receive(:viewer_login).and_return("alice")
-    allow(adapter).to receive(:already_forked?).with(project).and_return(true)
-
-    target = File.join(clone_root, "sidekiq", "sidekiq")
-    FileUtils.mkdir_p(File.join(target, ".git"))
-
-    expect(cli.run(["sidekiq/7"])).to eq(0)
-    expect(git).not_to have_received(:clone)
-    expect(git).to have_received(:checkout_branch).with(target, "gem-contribute/issue-7")
-    expect(stdout.string).to include("Reusing existing clone")
+    expect(stdout.string).to include(fork_info.upstream_url)
+    expect(stdout.string).to include(fork_info.fork_url)
   end
 
   it "fails clearly if the gem doesn't resolve to github.com" do
@@ -130,10 +98,9 @@ RSpec.describe GemContribute::CLI::Fix do
     expect(stderr.string).to include("only github.com is supported")
   end
 
-  it "fails after the readiness timeout if fork_ready? never returns true" do
-    allow(adapter).to receive(:already_forked?).with(project).and_return(false)
-    allow(adapter).to receive(:fork).with(project).and_return("clone_url" => "https://github.com/alice/sidekiq.git")
-    allow(adapter).to receive_messages(viewer_login: "alice", fork_ready?: false)
+  it "surfaces an AdapterError from the bootstrap with a friendly message" do
+    allow(fork_cli).to receive(:bootstrap)
+      .and_raise(GemContribute::AdapterError, "fork not reachable after 60s")
 
     expect(cli.run(["sidekiq/1"])).to eq(1)
     expect(stderr.string).to include("fork not reachable")
@@ -147,40 +114,28 @@ RSpec.describe GemContribute::CLI::Fix do
         resolver: resolver, store: store,
         adapter_factory: ->(**) { adapter },
         git: git, clone_root: clone_root,
-        sleeper: ->(_s) {},
         post_clone_hooks: hooks,
-        config: config
+        config: config, fork: fork_cli
       )
-    end
-    let(:target_path) { File.join(clone_root, "sidekiq", "sidekiq") }
-
-    before do
-      allow(adapter).to receive(:viewer_login).and_return("alice")
-      allow(adapter).to receive(:already_forked?).with(project).and_return(true)
     end
 
     it "passes parsed flags to post_clone_hooks" do
       expect(cli_with_hooks.run(["sidekiq/1", "-e", "-a"])).to eq(0)
-      expect(hooks).to have_received(:call).with(target_path, editor: true, ai_tool: true)
+      expect(hooks).to have_received(:call).with(target, editor: true, ai_tool: true)
     end
 
     it "parses flags placed before the target" do
       expect(cli_with_hooks.run(["-e", "sidekiq/1"])).to eq(0)
-      expect(hooks).to have_received(:call).with(target_path, editor: true, ai_tool: false)
+      expect(hooks).to have_received(:call).with(target, editor: true, ai_tool: false)
     end
 
     it "calls hooks with both flags false when neither flag is given" do
       expect(cli_with_hooks.run(["sidekiq/1"])).to eq(0)
-      expect(hooks).to have_received(:call).with(target_path, editor: false, ai_tool: false)
+      expect(hooks).to have_received(:call).with(target, editor: false, ai_tool: false)
     end
   end
 
   describe "issue comment integration" do
-    before do
-      allow(adapter).to receive(:viewer_login).and_return("alice")
-      allow(adapter).to receive(:already_forked?).with(project).and_return(true)
-    end
-
     it "announces working on the issue by default" do
       expect(cli.run(["sidekiq/1234"])).to eq(0)
       expect(GemContribute::CLI::IssueAnnouncer).to have_received(:announce_working)
@@ -194,7 +149,6 @@ RSpec.describe GemContribute::CLI::Fix do
     end
 
     it "skips the announce when the issue's branch already exists locally (resuming)" do
-      target = File.join(clone_root, "sidekiq", "sidekiq")
       FileUtils.mkdir_p(File.join(target, ".git"))
       allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(true)
 
@@ -204,7 +158,6 @@ RSpec.describe GemContribute::CLI::Fix do
 
     it "announces when the clone exists but the branch for this issue is new" do
       # User worked on issue 4 yesterday (clone exists), now starting issue 1234 fresh.
-      target = File.join(clone_root, "sidekiq", "sidekiq")
       FileUtils.mkdir_p(File.join(target, ".git"))
       allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(false)
 
@@ -218,7 +171,8 @@ RSpec.describe GemContribute::CLI::Fix do
         owner: "alice", repo: "rubocop", metadata: {}
       )
       allow(resolver).to receive(:resolve).and_return(owned)
-      allow(adapter).to receive(:already_forked?).with(owned).and_return(true)
+      owned_target = File.join(clone_root, "alice", "rubocop")
+      allow(fork_cli).to receive(:bootstrap).with(adapter, owned).and_return([owned_target, fork_info])
 
       expect(cli.run(["rubocop/1234"])).to eq(0)
       expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)

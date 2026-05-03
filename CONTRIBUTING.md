@@ -6,11 +6,17 @@ Thanks for considering a contribution. This project is *about* lowering the fric
 
 ```
 gem install gem-contribute
-gem-contribute init                       # set clone_root and auth with GitHub
-gem-contribute fix gem-contribute/issue-5
+gem-contribute init                          # set clone_root and auth with GitHub
+gem-contribute fork gem-contribute           # fork + clone; lands on the default branch
 bundle install
-bin/rspec               # tests should pass on a clean checkout
-bin/gem-contribute      # tool should run against this repo's own Gemfile.lock
+bin/rspec                                    # tests should pass on a clean checkout
+bin/gem-contribute                           # tool should run against this repo's own Gemfile.lock
+```
+
+Once you've picked an issue to work on, branch off the default with `fix`:
+
+```
+gem-contribute fix gem-contribute/<issue#>   # creates gem-contribute/issue-<N> off the default branch
 ```
 
 ## What we welcome

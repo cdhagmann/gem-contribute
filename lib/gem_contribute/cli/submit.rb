@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "open3"
-require "uri"
 
 module GemContribute
   module CLI
@@ -13,15 +12,16 @@ module GemContribute
     #   - upstream remote → canonical owner/repo (where the PR is filed)
     #   - current branch  → must match `gem-contribute/issue-<N>`
     #
-    # The PR itself is NOT opened via API. We push, then open GitHub's compare
-    # page in the browser with title and body pre-filled. This mirrors the
-    # `auth login` UX (browser handles the human step) and means the user
-    # always reviews the PR text before submitting.
+    # The PR itself is NOT opened via API. We push, then open the host's
+    # compare/MR page in the browser with title and body pre-filled. This
+    # mirrors the `auth login` UX (browser handles the human step) and means
+    # the user always reviews the PR text before submitting. The host-specific
+    # URL is built by the adapter (ADR-0011).
     class Submit
       BRANCH_REGEX = %r{\Agem-contribute/issue-(\d+)\z}
 
       def initialize(stdout: $stdout, stderr: $stderr,
-                     git: Git.new,
+                     git: GemContribute::Git.new,
                      adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
                      store: TokenStore.new,
                      browser_opener: nil,
@@ -47,18 +47,29 @@ module GemContribute
         # separate fork and no `upstream` remote — fall back to origin and
         # build a same-repo PR.
         upstream = parse_remote("upstream", required: false) || origin
-
-        title = fetch_issue_title(upstream, issue_number)
-        push_branch(branch)
-        url = compare_url(upstream, origin, branch, issue_number, title)
-        open_and_print(url)
-        0
+        execute(branch, issue_number, origin, upstream)
       rescue AdapterError => e
         @stderr.puts "submit failed: #{e.message}"
         1
       end
 
       private
+
+      def execute(branch, issue_number, origin, upstream)
+        adapter = @adapter_factory.call(token: @store.token_for("github.com"))
+        upstream_project = project_for(upstream)
+        title = fetch_issue_title(adapter, upstream_project, issue_number)
+        push_branch(branch)
+        url = adapter.pull_request_url(
+          upstream_project,
+          head_owner: origin[:owner],
+          head_branch: branch,
+          title: pr_title(issue_number, title),
+          body: pr_body(issue_number)
+        )
+        open_and_print(url)
+        0
+      end
 
       def current_branch
         # symbolic-ref works even on a fresh branch with no commits;
@@ -101,37 +112,31 @@ module GemContribute
         end
       end
 
-      def fetch_issue_title(upstream, number)
-        token = @store.token_for("github.com")
-        adapter = @adapter_factory.call(token: token)
-        adapter.issue(upstream[:owner], upstream[:repo], number).fetch("title", nil)
+      def project_for(owner_repo)
+        Project.new(
+          gem_name: owner_repo[:repo], host: "github.com",
+          owner: owner_repo[:owner], repo: owner_repo[:repo], metadata: {}
+        )
+      end
+
+      def fetch_issue_title(adapter, upstream_project, number)
+        adapter.issue(upstream_project, number).fetch("title", nil)
       rescue AdapterError => e
         @stderr.puts "submit: couldn't fetch issue title (#{e.message}). Continuing without it."
         nil
       end
 
+      def pr_title(issue_number, title)
+        title ? "Fix ##{issue_number}: #{title}" : "Fix ##{issue_number}"
+      end
+
+      def pr_body(issue_number)
+        "Closes ##{issue_number}.\n\n_Opened via `gem-contribute submit`._"
+      end
+
       def push_branch(branch)
         @stdout.puts "Pushing #{branch} to origin..."
         @git.push(@working_dir, "origin", branch)
-      end
-
-      def compare_url(upstream, origin, branch, issue_number, title)
-        # GitHub compare URL forms:
-        #   Cross-fork:  /<upstream>/compare/<fork-owner>:<branch>
-        #   Same-repo:   /<upstream>/compare/<branch>
-        # We omit the explicit base so GitHub auto-resolves to default.
-        # `expand=1` opens the PR creation form pre-filled.
-        same_repo = origin[:owner] == upstream[:owner] && origin[:repo] == upstream[:repo]
-        head = same_repo ? branch : "#{origin[:owner]}:#{branch}"
-        full_title = title ? "Fix ##{issue_number}: #{title}" : "Fix ##{issue_number}"
-        params = {
-          "expand" => "1",
-          "title" => full_title,
-          "body" => "Closes ##{issue_number}.\n\n_Opened via `gem-contribute submit`._"
-        }
-
-        "https://github.com/#{upstream[:owner]}/#{upstream[:repo]}/compare/#{head}?" \
-          "#{URI.encode_www_form(params)}"
       end
 
       def open_and_print(url)

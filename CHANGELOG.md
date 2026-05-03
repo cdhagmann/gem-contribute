@@ -16,6 +16,7 @@ All notable changes to this project will be documented here. The format is based
 ### Changed
 
 - Internal class `ForkCloneBranch` renamed to `Fix` (the long name was cumbersome and didn't mirror the `fix` CLI verb). User-facing CLI surface unchanged.
+- Internal architecture: `HostAdapter` now owns every host-API verb (`fork`, `comment`, `pull_request_url`) plus host-specific URL templating (`clone_url`, `repo_url`); the new `Operations::Fork` / `Operations::Clone` primitives compose those with `Git`; `CLI::Fork` and `CLI::Fix` are thin compositions on top. The fork-readiness polling moved into the adapter — multi-host adapters can model readiness however the host actually works. See [ADR-0011](docs/adr/0011-host-adapter-owns-host-verbs.md). User-facing CLI surface unchanged.
 
 ### Removed
 
