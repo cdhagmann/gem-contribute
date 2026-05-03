@@ -19,7 +19,7 @@ end
 
 This works for a single CLI, but breaks across three interfaces:
 
-- The **TUI** has no output stream. Progress is model state rendered by `View`, not a string printed to stdout. There is no clean way to route `@stdout.puts` into a bubbletea model update.
+- The **TUI** has no output stream. Progress is model state rendered by `View`, not a string printed to stdout. There is no clean way to route `@stdout.puts` into a Rooibos model update.
 - The **gem plugin** needs to own its own output formatting and cannot share stdout injection with the CLI.
 - **Tests** must assert on stdout side effects instead of return values, coupling test setup to I/O concerns.
 
@@ -189,7 +189,7 @@ The `with_workflow_rescues` wrapper in `Workflow` is retired — pattern matchin
 
 ## TUI pipeline
 
-The TUI never uses an `Output` object. A bubbletea Command wraps the service call, runs it off-thread, and returns a message to `Update`:
+The TUI never uses an `Output` object. A Rooibos Command wraps the service call, runs it off-thread, and returns a message to `Update`:
 
 ```ruby
 def fix_command(adapter:, project:, issue:, viewer:)
@@ -219,13 +219,18 @@ end
 
 The service object returns a `Result`; the Command wraps it in a typed message; `Update` renders it as model state. No output object, no stdout, no cross-layer exceptions.
 
-## gem plugin pipeline
+## Plugin pipelines
 
-`gem contribute fork zeitwerk` — a RubyGems plugin (gem named `rubygems-contribute`) that registers a `Gem::Command` subclass and delegates to the CLI pipeline. The plugin reuses `Output::Standard` and the CLI verb implementations verbatim; the only new code is the `Gem::Command` entry point.
+Per [ADR-0014](adr/0014-ship-bundler-and-rubygems-plugins.md), v1 ships three entry points in a single `gem-contribute` gem: the standalone `gem-contribute` binary, a Bundler plugin (`bundle contribute`), and a RubyGems plugin (`gem contribute`). Both plugins are CLI-only; the TUI is a property of the standalone binary.
 
-When `dry-cli` is added (Phase 3), it replaces the hand-rolled `COMMANDS` dispatch in `cli.rb` with declarative command registration. Both the `gem-contribute` binary and the `gem contribute` plugin register the same underlying commands against their respective entry points — the commands themselves do not change.
+- **Bundler plugin** — `plugins.rb` at the gem root, per Bundler convention. Registers a `bundle contribute` command and delegates to the same dispatch table the standalone CLI uses.
+- **RubyGems plugin** — `rubygems_plugin.rb`, per RubyGems convention. Registers a `Gem::Command` subclass for `gem contribute` and delegates the same way.
 
-The gem plugin work is explicitly deferred until the service layer (Phase 1) and CLI pipeline (Phase 2) are clean.
+Both plugin entry points MUST NOT require Rooibos or `ratatui_ruby`. The TUI gets loaded only by the standalone-binary entry point, which keeps plugin install lightweight and plugin invocations fast.
+
+When `dry-cli` is added (alongside the plugin shims), it replaces the hand-rolled `COMMANDS` dispatch in `cli.rb` with declarative command registration. All three entry points register the same underlying commands against their respective hosts — the commands themselves do not change.
+
+The plugin work is deferred until the service layer and CLI pipeline are clean (this document's Phases 1 and 2) and the TUI lands ([ROADMAP](ROADMAP.md) Phase 3).
 
 ## New dependencies
 
@@ -236,7 +241,7 @@ The gem plugin work is explicitly deferred until the service layer (Phase 1) and
 | `dry-initializer` | Clean option declarations; removes rubocop suppressions | 1 |
 | `tty-spinner` | Spinner in `Output::Standard#progress` | 2 |
 | `tty-prompt` | Interactive prompts in `Init` | 2 |
-| `dry-cli` | Command registration for CLI + gem plugin | 3 |
+| `dry-cli` | Command registration across all three entry points | 4/5 (with plugin shims) |
 
 Pin all new dependencies to a minor version (`~> x.y`). Bump deliberately; record significant bumps in an ADR note.
 
@@ -259,13 +264,16 @@ Pin all new dependencies to a minor version (`~> x.y`). Bump deliberately; recor
 3. Add `tty-spinner` for `Output::Standard#progress`.
 4. Replace `Init`'s `stdout.print` + `@gets` with `tty-prompt`.
 
-### Phase 3 — gem plugin
+### Phases 4 and 5 — Bundler and RubyGems plugins
 
-1. Add `dry-cli`. Replace the `COMMANDS` dispatch in `cli.rb` with `dry-cli` command registration.
-2. Create `rubygems-contribute` gem with a `Gem::Command` entry point.
-3. Wire it to the CLI pipeline.
+Per ADR-0014 and the [ROADMAP](ROADMAP.md), the gem-plugin work is split into two ROADMAP phases (one per plugin) and lives within the `gem-contribute` gem rather than as separate `bundler-contribute` / `rubygems-contribute` gems.
 
-Each phase is independently releasable. Phase 1 has no user-visible behaviour change. Phase 2 changes the look of progress output and prompts. Phase 3 adds a new entry point.
+1. Add `dry-cli`. Replace the `COMMANDS` dispatch in `cli.rb` with `dry-cli` command registration so multiple entry points can hang off it.
+2. Add `plugins.rb` at the gem root (Bundler plugin entry point). Register a `bundle contribute` command that dispatches into the same registration table.
+3. Add `rubygems_plugin.rb` (RubyGems plugin entry point). Register a `Gem::Command` subclass that does the same.
+4. Smoke-test both plugin install paths in CI.
+
+Each ADR-0012 phase is independently releasable. Phase 1 has no user-visible behaviour change. Phase 2 changes the look of progress output and prompts. The plugin phases add new entry points.
 
 ## Testing strategy
 
@@ -273,7 +281,7 @@ Each phase is independently releasable. Phase 1 has no user-visible behaviour ch
 
 **CLI pipeline:** inject `Output::Null` for tests that don't assert on output; inject a capturing double for tests that do. Assert on captured calls to `#info`/`#error`/`#progress`, not on raw stdout strings.
 
-**TUI pipeline:** the Command closure is a plain lambda — call it directly and assert on the returned message hash. `Update` is a pure function — call it with a message and assert on the returned model. Bubbletea-ruby's test helpers (unverified at ADR-0010 time; confirm before Stage 3) may supplement this.
+**TUI pipeline:** the Command closure is a plain lambda — call it directly and assert on the returned message hash. `Update` is a pure function — call it with a message and assert on the returned model. Rooibos's snapshot test helpers (per ADR-0008/0013) supplement this for full-flow scenarios.
 
 **gem plugin:** thin entry-point tests only. The CLI pipeline tests cover the behaviour.
 
@@ -283,5 +291,5 @@ Each phase is independently releasable. Phase 1 has no user-visible behaviour ch
 - `Resolver`, `LockfileParser`, `TokenStore`, `Cache` — already output-free.
 - The Auth flow shape. `CLI::Auth` keeps its existing structure; `Workflow#build_adapter`'s change is internal wiring.
 - Caching strategy and TTLs.
-- The bubbletea + lipgloss framework choice (ADR-0010).
+- The Rooibos framework choice (ADR-0013, which superseded ADR-0010).
 - ADR-0005 (render labels verbatim), ADR-0007 (show CONTRIBUTING), ADR-0009 (namespace). None of these touch the interface boundary.

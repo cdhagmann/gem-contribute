@@ -46,9 +46,9 @@ Two new ADRs landed:
 - [ADR-0013](adr/0013-revert-to-rooibos.md) — Rooibos as the TUI framework, superseding ADR-0010.
 - [ADR-0014](adr/0014-ship-bundler-and-rubygems-plugins.md) — Bundler + RubyGems plugins ship at v1, single gem.
 
-ADR header sweep done in commit `00f5a4c`. Remaining cleanup:
-- [ ] 🌱 [#23](https://github.com/cdhagmann/gem-contribute/issues/23) — Sweep `docs/design.md` for residual bubbletea references
-- [ ] 🌱 [#24](https://github.com/cdhagmann/gem-contribute/issues/24) — Sweep `docs/design-interface-layer.md` for "bubbletea" → "Rooibos" and update gem-plugin section
+ADR header sweep done in commit `00f5a4c`. Doc sweeps:
+- [x] 🌱 [#23](https://github.com/cdhagmann/gem-contribute/issues/23) — Sweep `docs/design.md` for residual bubbletea references (no-op; doc was already clean)
+- [x] 🌱 [#24](https://github.com/cdhagmann/gem-contribute/issues/24) — Sweep `docs/design-interface-layer.md` for "bubbletea" → "Rooibos" and update gem-plugin section
 
 ---
 
