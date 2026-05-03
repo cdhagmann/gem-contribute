@@ -32,7 +32,7 @@ module GemContribute
                      sleeper: ->(s) { Kernel.sleep(s) },
                      post_clone_hooks: nil,
                      config: nil,
-                     fork_clone: nil)
+                     fork: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
@@ -42,8 +42,11 @@ module GemContribute
         @clone_root = clone_root
         @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
         @config = config || GemContribute::Config.new
-        @fork_clone = fork_clone || ForkClone.new(stdout: stdout, git: @git,
-                                                  clone_root: clone_root, sleeper: sleeper)
+        @fork = fork || Fork.new(stdout: stdout, stderr: stderr,
+                                 resolver: resolver, store: store,
+                                 adapter_factory: adapter_factory,
+                                 git: @git, clone_root: clone_root,
+                                 sleeper: sleeper, post_clone_hooks: @post_clone_hooks)
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -89,7 +92,7 @@ module GemContribute
       def execute(adapter, project, issue, flags)
         viewer = adapter.viewer_login
         was_resuming = branch_exists_locally?(project, issue)
-        local_path = @fork_clone.call(adapter, project, viewer)
+        local_path = @fork.call(adapter, project, viewer)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
         @git.checkout_branch(local_path, branch_name)
 
