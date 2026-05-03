@@ -1,8 +1,8 @@
 # ADR 0010: Use Charm-Ruby (bubbletea + lipgloss) for the TUI layer
 
-**Status:** Accepted
+**Status:** **Superseded by [ADR-0013](0013-revert-to-rooibos.md)** (2026-05-03). Bubbletea-ruby was a workshop-driven choice; once the workshop concluded, ADR-0013 restored Rooibos as the TUI framework.
 **Date:** 2026-05-02
-**Supersedes:** [ADR-0008](0008-rooibos-tui-framework.md)
+**Supersedes:** [ADR-0008](0008-rooibos-tui-framework.md) — but see ADR-0013, which reverses this supersession.
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR 0006: Standalone gem, not a Bundler plugin
 
-**Status:** Accepted
+**Status:** Partially superseded — the standalone-gem decision stands; the no-Bundler-plugin decision is **reversed by [ADR-0014](0014-ship-bundler-and-rubygems-plugins.md)**. Earlier amendment by [ADR-0012](0012-output-free-service-objects-three-interface-architecture.md) (which added a RubyGems plugin) is now itself superseded by ADR-0014's single-gem packaging.
 **Date:** 2026-04-27
 
 ## Context
