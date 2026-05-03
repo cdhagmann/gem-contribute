@@ -10,6 +10,8 @@ All three share the same output-free service layer (per [ADR-0012](adr/0012-outp
 
 This document is the plan. Decisions still in flight live in [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) and get resolved one at a time.
 
+> 🌱 marks a [good first issue](https://github.com/cdhagmann/gem-contribute/labels/good%20first%20issue) — small, self-contained scope, friendly for someone new to the codebase.
+
 ## Decision history (the short version)
 
 - **Workshop is over** (2026-05-02). Decisions made primarily for workshop scope are reversed.
@@ -45,8 +47,8 @@ Two new ADRs landed:
 - [ADR-0014](adr/0014-ship-bundler-and-rubygems-plugins.md) — Bundler + RubyGems plugins ship at v1, single gem.
 
 ADR header sweep done in commit `00f5a4c`. Remaining cleanup:
-- [ ] [#23](https://github.com/cdhagmann/gem-contribute/issues/23) — Sweep `docs/design.md` for residual bubbletea references
-- [ ] [#24](https://github.com/cdhagmann/gem-contribute/issues/24) — Sweep `docs/design-interface-layer.md` for "bubbletea" → "Rooibos" and update gem-plugin section
+- [ ] 🌱 [#23](https://github.com/cdhagmann/gem-contribute/issues/23) — Sweep `docs/design.md` for residual bubbletea references
+- [ ] 🌱 [#24](https://github.com/cdhagmann/gem-contribute/issues/24) — Sweep `docs/design-interface-layer.md` for "bubbletea" → "Rooibos" and update gem-plugin section
 
 ---
 
@@ -196,19 +198,19 @@ A `rubygems_plugin.rb` entry point registers a `Gem::Command` subclass per RubyG
 Everything required to call it 1.0 and not 0.x.
 
 **Pre-existing user-facing issues that fold into this phase:**
-- [ ] [#1 — Add `preferred_labels` config so non-canonical good-first-issue labels are caught](https://github.com/cdhagmann/gem-contribute/issues/1)
-- [ ] [#3 — Add `gem-contribute open <gem>` to open the repo in the browser](https://github.com/cdhagmann/gem-contribute/issues/3)
-- [ ] [#9 — Add `--label LABEL` flag to scan and issues for one-off overrides](https://github.com/cdhagmann/gem-contribute/issues/9) (related to #1)
-- [ ] [#10 — Friendlier message when `fix` runs against a repo you own](https://github.com/cdhagmann/gem-contribute/issues/10)
+- [ ] 🌱 [#1 — Add `preferred_labels` config so non-canonical good-first-issue labels are caught](https://github.com/cdhagmann/gem-contribute/issues/1)
+- [ ] 🌱 [#3 — Add `gem-contribute open <gem>` to open the repo in the browser](https://github.com/cdhagmann/gem-contribute/issues/3)
+- [ ] 🌱 [#9 — Add `--label LABEL` flag to scan and issues for one-off overrides](https://github.com/cdhagmann/gem-contribute/issues/9) (related to #1)
+- [ ] 🌱 [#10 — Friendlier message when `fix` runs against a repo you own](https://github.com/cdhagmann/gem-contribute/issues/10)
 
 **Release infrastructure:**
-- [ ] [#40](https://github.com/cdhagmann/gem-contribute/issues/40) — Add CHANGELOG.md
-- [ ] [#41](https://github.com/cdhagmann/gem-contribute/issues/41) — Add CONTRIBUTING.md
+- [ ] 🌱 [#40](https://github.com/cdhagmann/gem-contribute/issues/40) — Add CHANGELOG.md
+- [ ] 🌱 [#41](https://github.com/cdhagmann/gem-contribute/issues/41) — Add CONTRIBUTING.md
 - [ ] [#42](https://github.com/cdhagmann/gem-contribute/issues/42) — Add MAINTAINER.md (release process, OAuth App, plugin verification)
 - [ ] OAuth App: stay on personal-account App for v1.0 (per Q13); migrate when rate limits bite
 - [ ] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow (`.github/workflows/ci.yml`): rubocop + rspec; gated integration tests; plugin install smoke
 - [ ] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow (`.github/workflows/release.yml`) with **Trusted Publishing (OIDC)**
-- [ ] [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/`
+- [ ] 🌱 [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/`
 - [ ] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience
 - [ ] Verify `bundle plugin install` and `gem install` from a clean machine (covered by CI smoke test in #43)
 - [ ] [#47](https://github.com/cdhagmann/gem-contribute/issues/47) — Meta-PR: use `gem-contribute` against a real downstream
@@ -238,7 +240,7 @@ If we're behind: Phase 3 is the load-bearing one for "v1 worth releasing." Phase
 - Label normalization (ADR-0005)
 - CONTRIBUTING parsing (ADR-0007)
 
-[#5](https://github.com/cdhagmann/gem-contribute/issues/5) itself stays open indefinitely as a sandbox for new contributors to practice the `fix` → `submit` loop.
+🌱 [#5](https://github.com/cdhagmann/gem-contribute/issues/5) itself stays open indefinitely as a sandbox for new contributors to practice the `fix` → `submit` loop.
 
 ---
 
