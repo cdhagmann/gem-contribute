@@ -116,6 +116,19 @@ RSpec.describe GemContribute::CLI::Fork do
       expect(post_clone_hooks).to have_received(:call).with(target_path, editor: true, ai_tool: true)
     end
 
+    it "prints a cd-then-edit hint when no -e/-a flag is passed", :aggregate_failures do
+      expect(cli.run(["sidekiq"])).to eq(0)
+      expect(stdout.string).to include("Next: cd #{target_path} && $EDITOR .")
+      expect(stdout.string).to include("`gem-contribute fix sidekiq/<issue#>`")
+    end
+
+    it "drops the cd-then-edit hint when -e or -a is passed", :aggregate_failures do
+      expect(cli.run(["sidekiq", "-e"])).to eq(0)
+      expect(stdout.string).not_to include("cd ")
+      expect(stdout.string).not_to include("$EDITOR")
+      expect(stdout.string).to include("Next: pick an issue and run `gem-contribute fix sidekiq/<issue#>`")
+    end
+
     it "accepts owner/repo form and skips RubyGems resolution" do
       expect(cli.run(["rubyevents/rubyevents"])).to eq(0)
       expect(resolver).not_to have_received(:resolve)

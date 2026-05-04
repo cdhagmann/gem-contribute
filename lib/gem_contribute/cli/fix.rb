@@ -20,13 +20,14 @@ module GemContribute
 
       option :stdout, default: -> { $stdout }
       option :stderr, default: -> { $stderr }
+      option :output, default: -> { Output::Standard.new(out: stdout, err: stderr) }
       option :resolver, default: -> { Resolver.new }
       option :store, default: -> { TokenStore.new }
       option :adapter_factory,
              default: -> { ->(token:) { HostAdapters::GitHubAdapter.new(token: token) } }
       option :git, default: -> { GemContribute::Git.new }
       option :clone_root, default: -> { DEFAULT_CLONE_ROOT }
-      option :post_clone_hooks, default: -> { PostCloneHooks.new(stdout: stdout, stderr: stderr) }
+      option :post_clone_hooks, default: -> { PostCloneHooks.new(output: output) }
       option :config, default: -> { GemContribute::Config.new }
       option :pipeline, default: -> { Operations::FixPipeline.new(git: git) }
 
@@ -45,7 +46,7 @@ module GemContribute
 
           execute(adapter, project, issue, flags)
         in Failure(:unauthenticated)
-          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          @output.error("Not authenticated. Run `gem-contribute auth login` first.")
           1
         end
       end
@@ -67,7 +68,7 @@ module GemContribute
       end
 
       def print_usage_error
-        @stderr.puts "Usage: gem-contribute fix <gem>/<issue#> [-e] [-a]"
+        @output.error("Usage: gem-contribute fix <gem>/<issue#> [-e] [-a]")
         2
       end
 
@@ -75,43 +76,45 @@ module GemContribute
         allow_announce = !flags[:no_comment] &&
                          @config.comment_on_fix?("#{project.owner}/#{project.repo}")
 
-        @stdout.puts "Forking #{project.owner}/#{project.repo}..."
+        result = @output.progress("Forking #{project.owner}/#{project.repo}...") do
+          @pipeline.call(adapter: adapter, project: project, issue: issue,
+                         root: @clone_root, allow_announce: allow_announce)
+        end
 
-        case @pipeline.call(adapter: adapter, project: project, issue: issue,
-                            root: @clone_root, allow_announce: allow_announce)
+        case result
         in Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: announce_data)
           print_summary(clone_data.path, branch_data.name, fork_data)
           print_announce_outcome(announce_data, issue)
           @post_clone_hooks.call(clone_data.path, editor: flags[:editor], ai_tool: flags[:ai_tool])
           0
         in Failure(:unauthenticated)
-          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          @output.error("Not authenticated. Run `gem-contribute auth login` first.")
           1
         in Failure(:adapter_error, message)
-          @stderr.puts "fix failed: #{message}"
+          @output.error("fix failed: #{message}")
           1
         end
       end
 
       def print_summary(local_path, branch_name, fork_info)
-        @stdout.puts "Forked, cloned, and branched."
-        @stdout.puts "  path:   #{local_path}"
-        @stdout.puts "  branch: #{branch_name}"
-        @stdout.puts "  upstream: #{fork_info.upstream_url}"
-        @stdout.puts "  fork:     #{fork_info.fork_url}"
-        @stdout.puts
-        @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
+        @output.info("Forked, cloned, and branched.")
+        @output.info("  path:   #{local_path}")
+        @output.info("  branch: #{branch_name}")
+        @output.info("  upstream: #{fork_info.upstream_url}")
+        @output.info("  fork:     #{fork_info.fork_url}")
+        @output.info("")
+        @output.info("Next: cd #{local_path} && make your changes, then `gem-contribute submit`.")
       end
 
       def print_announce_outcome(announce_result, issue)
         case announce_result
         in Success(:posted)
-          @stdout.puts "Posted 'working on this' comment to issue ##{issue}."
+          @output.info("Posted 'working on this' comment to issue ##{issue}.")
         in Success(:skipped)
           # no output for skipped — quiet success
         in Failure(:announce_failed, message)
-          @stderr.puts "Note: couldn't post 'working on this' comment to issue ##{issue}: " \
-                       "#{message}. Continuing."
+          @output.warn("Note: couldn't post 'working on this' comment to issue ##{issue}: " \
+                       "#{message}. Continuing.")
         end
       end
     end

@@ -12,15 +12,23 @@ All notable changes to this project will be documented here. The format is based
 - `gem-contribute fix` posts a "👋 I've started working on this" comment to the issue by default so other contributors don't double up on the same work. Opt out per-invocation with `--no-comment`, globally with `comment_on_fix: false` in config, or per-repo via `comment_on_fix_overrides` (YAML-only). Posting is soft-fail — the fork/clone/branch part still succeeds even if the comment can't be posted (closes [#18](https://github.com/cdhagmann/gem-contribute/issues/18)).
 - `scan` appends `· N claimed` to project lines whose open issues have already been claimed via the working-on-this marker, so you can spot already-in-progress work at a glance (closes [#20](https://github.com/cdhagmann/gem-contribute/issues/20)).
 - `issues <gem|all>` prefixes claimed issues with `[claimed]` for the same reason (closes [#20](https://github.com/cdhagmann/gem-contribute/issues/20)).
+- Long-running CLI operations (`fix`'s fork → clone → branch pipeline; `submit`'s `git push`) now show a tty-spinner in interactive terminals. Non-TTY contexts (CI, piped output, redirected stderr) fall back to plain status lines — no behavior change for scripted use (closes [#30](https://github.com/cdhagmann/gem-contribute/issues/30)).
 
 ### Changed
 
+- `gem-contribute init` reads input through `tty-prompt`. Cosmetic side effect: default values are now displayed in parens — `(~/code/oss)` — instead of brackets — `[~/code/oss]` — matching tty-prompt's convention. Y/n parsing is now built-in instead of hand-rolled (closes [#31](https://github.com/cdhagmann/gem-contribute/issues/31)).
 - Internal class `ForkCloneBranch` renamed to `Fix` (the long name was cumbersome and didn't mirror the `fix` CLI verb). User-facing CLI surface unchanged.
 - Internal architecture: `HostAdapter` now owns every host-API verb (`fork`, `comment`, `pull_request_url`) plus host-specific URL templating (`clone_url`, `repo_url`); the new `Operations::Fork` / `Operations::Clone` primitives compose those with `Git`; `CLI::Fork` and `CLI::Fix` are thin compositions on top. The fork-readiness polling moved into the adapter — multi-host adapters can model readiness however the host actually works. See [ADR-0011](docs/adr/0011-host-adapter-owns-host-verbs.md). User-facing CLI surface unchanged.
+- Internal architecture (ADR-0012 Phase 1): `Operations::*` classes are now output-free and return `dry-monads` `Success` / `Failure` `Result` types; new `Operations::Branch` and `Operations::Announce` primitives; `Operations::FixPipeline` composes Fork → Clone → Branch → Announce via `dry-operation`; `Workflow#build_adapter` returns a `Result` and the old `with_workflow_rescues` rescue chain is gone; `CLI::Fork` / `CLI::Fix` initializers use `dry-initializer`. See [ADR-0012](docs/adr/0012-output-free-service-objects-three-interface-architecture.md). User-facing CLI surface unchanged.
+- Internal architecture (ADR-0012 Phase 2): every CLI verb writes through a semantic `Output::Standard` (or `Output::Null` in tests) abstraction — `#info`, `#progress`, `#warn`, `#error` — instead of raw `@stdout.puts` / `@stderr.puts`. `#progress` accepts an optional block and wraps a `tty-spinner` in TTY contexts. Existing constructors still accept `stdout:` / `stderr:` and auto-wrap them, so test suites injecting StringIO streams keep working unchanged. New deps: `tty-spinner ~> 0.9`, `tty-prompt ~> 0.23` (both pure-Ruby) (closes [#29](https://github.com/cdhagmann/gem-contribute/issues/29)).
 
 ### Removed
 
 - The `fork-clone-branch` CLI alias has been removed. Use `gem-contribute fix` instead — same behavior, shorter to type.
+
+### Fixed
+
+- `gem-contribute fork` no longer prints `cd <path> && explore` — `explore` was meant as English but read as a (non-existent) shell command, so a copy-paste produced `command not found`. The "Next:" hint is now conditional on `-e` / `-a`: with neither flag it suggests `cd <path> && $EDITOR .`; with either flag it skips the directory step (you're already in your editor) and just points at the `fix` command.
 
 ## [0.2.0] - 2026-05-02
 

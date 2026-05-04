@@ -13,15 +13,17 @@ module GemContribute
       module_function
 
       # @param adapter [GemContribute::HostAdapters::GitHubAdapter]
-      # @param stdout [IO]
-      def print(adapter:, stdout: $stdout)
+      # @param output [GemContribute::Output::Standard, GemContribute::Output::Null]
+      # @param stdout [IO] backward-compat for callers that haven't migrated to `output:`
+      def print(adapter:, output: nil, stdout: $stdout)
+        output ||= Output::Standard.new(out: stdout)
         rate_limit = adapter.respond_to?(:rate_limit) ? adapter.rate_limit : nil
         return if rate_limit.nil?
 
         remaining = format_with_separators(rate_limit.remaining)
         limit = format_with_separators(rate_limit.limit)
         reset = rate_limit.reset_at.utc.strftime("%H:%M")
-        stdout.puts "GitHub rate limit: #{remaining} / #{limit} remaining · resets at #{reset} UTC"
+        output.info("GitHub rate limit: #{remaining} / #{limit} remaining · resets at #{reset} UTC")
       end
 
       def format_with_separators(integer)

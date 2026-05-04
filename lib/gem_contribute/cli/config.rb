@@ -30,9 +30,9 @@ module GemContribute
                                `comment_on_fix_overrides` in the YAML.
       USAGE
 
-      def initialize(stdout: $stdout, stderr: $stderr, config: GemContribute::Config.new)
-        @stdout = stdout
-        @stderr = stderr
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
+                     config: GemContribute::Config.new)
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @config = config
       end
 
@@ -42,11 +42,11 @@ module GemContribute
         when "get"  then get(argv)
         when "list" then list
         when nil, "help", "-h", "--help"
-          @stdout.puts USAGE
+          @output.info(USAGE)
           0
         else
-          @stderr.puts "gem-contribute: unknown config subcommand"
-          @stderr.puts USAGE
+          @output.error("gem-contribute: unknown config subcommand")
+          @output.error(USAGE)
           2
         end
       end
@@ -57,44 +57,44 @@ module GemContribute
         key = argv.shift
         value = argv.shift
         if key.nil? || value.nil?
-          @stderr.puts "Usage: gem-contribute config set <key> <value>"
+          @output.error("Usage: gem-contribute config set <key> <value>")
           return 2
         end
 
         @config.set(key, value)
-        @stdout.puts "#{key} = #{value}"
+        @output.info("#{key} = #{value}")
         0
       rescue ArgumentError => e
-        @stderr.puts e.message
+        @output.error(e.message)
         1
       end
 
       def get(argv)
         key = argv.shift
         if key.nil?
-          @stderr.puts "Usage: gem-contribute config get <key>"
+          @output.error("Usage: gem-contribute config get <key>")
           return 2
         end
 
         unless GemContribute::Config::KNOWN_KEYS.include?(key)
-          @stderr.puts "unknown config key #{key.inspect}"
+          @output.error("unknown config key #{key.inspect}")
           return 1
         end
 
-        @stdout.puts @config.to_h.fetch(key, "(not set; run `gem-contribute init`)")
+        @output.info(@config.to_h.fetch(key, "(not set; run `gem-contribute init`)"))
         0
       end
 
       def list
-        @stdout.puts "Configuration (#{GemContribute::Config.default_path}):"
-        @stdout.puts "  clone_root = #{@config.clone_root || "(not set; run `gem-contribute init`)"}"
-        @stdout.puts "  editor = #{@config.editor || "(not set)"}"
-        @stdout.puts "  ai_tool = #{@config.ai_tool || "(not set)"}"
-        @stdout.puts "  comment_on_fix = #{@config.comment_on_fix?}"
+        @output.info("Configuration (#{GemContribute::Config.default_path}):")
+        @output.info("  clone_root = #{@config.clone_root || "(not set; run `gem-contribute init`)"}")
+        @output.info("  editor = #{@config.editor || "(not set)"}")
+        @output.info("  ai_tool = #{@config.ai_tool || "(not set)"}")
+        @output.info("  comment_on_fix = #{@config.comment_on_fix?}")
         overrides = @config.to_h["comment_on_fix_overrides"]
         if overrides.is_a?(Hash) && !overrides.empty?
-          @stdout.puts "  comment_on_fix_overrides:"
-          overrides.each { |repo, val| @stdout.puts "    #{repo}: #{val}" }
+          @output.info("  comment_on_fix_overrides:")
+          overrides.each { |repo, val| @output.info("    #{repo}: #{val}") }
         end
         0
       end

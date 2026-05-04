@@ -27,15 +27,19 @@ This document is the plan. Decisions still in flight live in [`OPEN_QUESTIONS.md
 - **Data layer.** `LockfileParser`, `Resolver`, `GitHubAdapter`, `Auth`, `TokenStore`, `Cache`, `Operations::Fork`, `Operations::Clone`.
 - **CLI verbs.** `init`, `scan`, `issues`, `config`, `auth`, `fork`, `fix`, `submit`.
 - **HostAdapter cleanup.** ADR-0011 work landed: adapter owns host verbs, Operations layer composes them, CLI verbs compose Operations.
-- **ADR-0012 design.** Service-layer contract is documented (`design-interface-layer.md`); implementation hasn't started.
+- **ADR-0012 service layer (Phase 1).** dry-monads `Result`, dry-operation pipelines, dry-initializer initializers, output-free `Operations::*`. Merged via [PR #48](https://github.com/cdhagmann/gem-contribute/pull/48) on 2026-05-04.
+- **Basic CI.** rubocop + rspec on push/PR landed via [PR #21](https://github.com/cdhagmann/gem-contribute/pull/21) (closes [#7](https://github.com/cdhagmann/gem-contribute/issues/7)). Plugin-install smoke and gated integration tests still pending under [#43](https://github.com/cdhagmann/gem-contribute/issues/43).
 
 ## What hasn't started
 
 - TUI
 - Bundler plugin
 - RubyGems plugin
-- ADR-0012 implementation (dry-monads, dry-operation, output-free operations)
-- Release infrastructure (CI, CHANGELOG, MAINTAINER doc)
+- Remaining release infrastructure (MAINTAINER doc, release workflow, README rewrite)
+
+## In flight
+
+- **ADR-0012 Phase 2 (CLI output pipeline)** — `Output::Standard`/`Output::Null`, `tty-spinner`, `tty-prompt`. Open in [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51).
 
 ---
 
@@ -52,9 +56,9 @@ ADR header sweep done in commit `00f5a4c`. Doc sweeps:
 
 ---
 
-## Phase 1 — Service layer (ADR-0012 Phase 1)
+## Phase 1 — Service layer (ADR-0012 Phase 1) (DONE)
 
-Make every operation output-free and Result-returning. This is what lets the TUI and the two plugins reuse the same code paths the standalone CLI uses.
+Made every operation output-free and Result-returning. This is what lets the TUI and the two plugins reuse the same code paths the standalone CLI uses. Merged via [PR #48](https://github.com/cdhagmann/gem-contribute/pull/48) on 2026-05-04.
 
 **Steps:**
 
@@ -69,23 +73,23 @@ Make every operation output-free and Result-returning. This is what lets the TUI
 9. Update CLI verbs to pattern-match on `Result`. Retire `Workflow#with_workflow_rescues`.
 
 **Acceptance:**
-- [ ] No `Operations::*` class accepts `stdout:` or `stderr:`
-- [ ] All operations return `Success` / `Failure`
-- [ ] `FixPipeline` exists; `CLI::Fix#execute` calls it instead of wiring steps inline
-- [ ] All existing tests pass (no behaviour change visible to users)
-- [ ] No new rubocop suppressions
+- [x] No `Operations::*` class accepts `stdout:` or `stderr:`
+- [x] All operations return `Success` / `Failure`
+- [x] `FixPipeline` exists; `CLI::Fix#execute` calls it instead of wiring steps inline
+- [x] All existing tests pass (no behaviour change visible to users)
+- [x] No new rubocop suppressions
 
 **Issues:**
-- [ ] [#25](https://github.com/cdhagmann/gem-contribute/issues/25) — Adopt dry-rb suite; convert `Operations::Fork`/`Clone` to `Result`
-- [ ] [#26](https://github.com/cdhagmann/gem-contribute/issues/26) — `Workflow#build_adapter` returns `Result`; retire `with_workflow_rescues`
-- [ ] [#27](https://github.com/cdhagmann/gem-contribute/issues/27) — Extract `Operations::Branch` and `Operations::Announce`; build `Operations::FixPipeline`
-- [ ] [#28](https://github.com/cdhagmann/gem-contribute/issues/28) — Migrate `CLI::Fork`/`CLI::Fix` initializers to dry-initializer
+- [x] [#25](https://github.com/cdhagmann/gem-contribute/issues/25) — Adopt dry-rb suite; convert `Operations::Fork`/`Clone` to `Result`
+- [x] [#26](https://github.com/cdhagmann/gem-contribute/issues/26) — `Workflow#build_adapter` returns `Result`; retire `with_workflow_rescues`
+- [x] [#27](https://github.com/cdhagmann/gem-contribute/issues/27) — Extract `Operations::Branch` and `Operations::Announce`; build `Operations::FixPipeline`
+- [x] [#28](https://github.com/cdhagmann/gem-contribute/issues/28) — Migrate `CLI::Fork`/`CLI::Fix` initializers to dry-initializer
 
 ---
 
-## Phase 2 — CLI pipeline (ADR-0012 Phase 2)
+## Phase 2 — CLI pipeline (ADR-0012 Phase 2) (in flight)
 
-Move CLI verbs to a semantic output abstraction so the look-and-feel can evolve independently of the service layer.
+Open in [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51). Move CLI verbs to a semantic output abstraction so the look-and-feel can evolve independently of the service layer.
 
 **Steps:**
 
@@ -208,7 +212,7 @@ Everything required to call it 1.0 and not 0.x.
 - [ ] 🌱 [#41](https://github.com/cdhagmann/gem-contribute/issues/41) — Add CONTRIBUTING.md
 - [ ] [#42](https://github.com/cdhagmann/gem-contribute/issues/42) — Add MAINTAINER.md (release process, OAuth App, plugin verification)
 - [ ] OAuth App: stay on personal-account App for v1.0 (per Q13); migrate when rate limits bite
-- [ ] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow (`.github/workflows/ci.yml`): rubocop + rspec; gated integration tests; plugin install smoke
+- [ ] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow (`.github/workflows/ci.yml`): rubocop + rspec; gated integration tests; plugin install smoke (basic rubocop + rspec already landed via [PR #21](https://github.com/cdhagmann/gem-contribute/pull/21) / [#7](https://github.com/cdhagmann/gem-contribute/issues/7); gated integration tests and plugin smoke still pending)
 - [ ] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow (`.github/workflows/release.yml`) with **Trusted Publishing (OIDC)**
 - [ ] 🌱 [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/`
 - [ ] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience
@@ -233,6 +237,7 @@ If we're behind: Phase 3 is the load-bearing one for "v1 worth releasing." Phase
 (Confirmed via OPEN_QUESTIONS Q10.)
 
 - Multi-host adapters — v1.x. GitLab tracked at [#8](https://github.com/cdhagmann/gem-contribute/issues/8); Codeberg/sourcehut not yet ticketed.
+- gem.coop-exclusive gems — v1.x. Mirrored gems work today; dedicated-namespace gems need a Resolver fallback to the gem.coop API. Tracked at [#50](https://github.com/cdhagmann/gem-contribute/issues/50).
 - World-map TUI fragment — post-v1, awaits adoption. Tracked indirectly via [#5](https://github.com/cdhagmann/gem-contribute/issues/5)'s acceptance criteria (which also owns the `KICKED_THE_TIRES.yml` data source). [needs dedicated issue when ready to build]
 - Private repos / `repo` OAuth scope — post-v1, no issue
 - PR creation from inside the TUI — design choice, browser-based stays (ADR-0011)

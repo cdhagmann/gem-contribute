@@ -11,14 +11,14 @@ module GemContribute
     # Result-returning service per ADR-0012), and the project resolver.
     #
     # Including classes are expected to hold:
-    #   @stderr, @resolver, @store, @adapter_factory, @clone_root
+    #   @output, @resolver, @store, @adapter_factory, @clone_root
     module Workflow
       include Dry::Monads[:result]
 
       private
 
       def missing_clone_root
-        @stderr.puts "clone_root is not configured. Run `gem-contribute init` first."
+        @output.error("clone_root is not configured. Run `gem-contribute init` first.")
         1
       end
 
@@ -51,8 +51,8 @@ module GemContribute
         project = @resolver.resolve(gem)
 
         if project.host != "github.com"
-          @stderr.puts "Cannot run `#{verb}`: #{target} resolves to #{project.host} " \
-                       "(only github.com is supported at v0.1)"
+          @output.error("Cannot run `#{verb}`: #{target} resolves to #{project.host} " \
+                        "(only github.com is supported at v0.1)")
           return nil
         end
 

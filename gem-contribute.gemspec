@@ -44,5 +44,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "dry-initializer", "~> 3.2"
   spec.add_dependency "dry-monads", "~> 1.10"
   spec.add_dependency "dry-operation", "~> 1.1"
+  spec.add_dependency "tty-prompt", "~> 0.23"
+  spec.add_dependency "tty-spinner", "~> 0.9"
   spec.add_dependency "zeitwerk", "~> 2.6"
 end
