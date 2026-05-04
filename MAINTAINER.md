@@ -86,7 +86,116 @@ older gem versions continue to work.
 
 ## Cutting a release
 
-(Stub — fill in when we cut v0.1.0 to RubyGems. Notes will live here:
-gemspec metadata checks, `bundle exec rake release` flow, signing, etc.)
+Releases publish to rubygems.org via [Trusted Publishing][gh-trusted-pub]
+(OIDC) — there is no `RUBYGEMS_API_KEY` secret and no manual `gem push`.
+A `v*` tag push triggers `.github/workflows/release.yml`, which verifies
+the tag matches `GemContribute::VERSION`, checks that `CHANGELOG.md` has a
+dated section for the version, runs rubocop and rspec, and then publishes.
+
+### One-time setup (before the first automated release)
+
+The rubygems.org Trusted Publisher entry must exist before any tag push
+can succeed. For an unclaimed gem name, use the **pending publisher**
+flow:
+
+1. Sign in at <https://rubygems.org>.
+
+2. Go to <https://rubygems.org/profile/me/oidc/pending_trusted_publishers/new>.
+
+3. Fill in the form:
+
+   | Field             | Value                |
+   |-------------------|----------------------|
+   | Gem name          | `gem-contribute`     |
+   | Repository owner  | `cdhagmann`          |
+   | Repository name   | `gem-contribute`     |
+   | Workflow filename | `release.yml`        |
+   | Environment       | `release`            |
+
+   The "Environment" value matches `environment: release` in the
+   workflow. Leave blank if you removed that line; otherwise both must
+   match exactly.
+
+4. Submit. The publisher entry is now "pending" — it has no gem attached
+   yet. The first successful publish from this workflow claims the name
+   and promotes the entry to a regular trusted publisher.
+
+After the gem is published, you can add additional trusted publishers
+(e.g. for a fork or replacement workflow) from the gem's settings page on
+rubygems.org instead of the pending-publisher flow.
+
+### Configure the GitHub environment (one-time)
+
+The workflow runs in an `environment: release` job. Create the environment
+in the repo so the OIDC claim carries the correct value:
+
+1. GitHub repo → Settings → Environments → **New environment**.
+2. Name it `release`.
+3. (Optional) Add yourself as a **Required reviewer** for a manual
+   approval gate before each publish. Recommended for the first few
+   releases until you trust the workflow.
+4. No secrets to configure. Trusted publishing replaces secrets entirely.
+
+### Per-release checklist
+
+When cutting a new version:
+
+1. **Bump the version.** Edit `lib/gem_contribute/version.rb` to the new
+   `MAJOR.MINOR.PATCH`. Follow [SemVer](https://semver.org/).
+
+2. **Update CHANGELOG.md.** Move the contents of `[Unreleased]` into a new
+   dated section: `## [X.Y.Z] - YYYY-MM-DD`. Leave `[Unreleased]` empty
+   for the next cycle. The release workflow refuses to publish if it
+   can't find a `## [X.Y.Z]` section matching the tag.
+
+3. **Commit on `main`.** Conventional message: `Bump gem-contribute to X.Y.Z`.
+
+4. **Tag and push.**
+
+   ```sh
+   git tag -a vX.Y.Z -m "X.Y.Z"
+   git push origin main vX.Y.Z
+   ```
+
+5. **Watch the Actions tab.** The workflow will:
+   - verify the tag/version/CHANGELOG match
+   - run rubocop and rspec
+   - request an OIDC token, exchange it for a short-lived rubygems API
+     key, and publish the gem
+   - create a draft GitHub release with auto-generated notes
+
+   If the environment has a required-reviewer protection rule, the
+   workflow will pause for your manual approval before the publish step.
+
+6. **Sanity check.** After publish, `gem info gem-contribute` should show
+   the new version. The draft GitHub release is yours to edit and publish
+   when ready.
+
+### Troubleshooting
+
+- **"Tag … does not match GemContribute::VERSION"** — version.rb is out of
+  sync with the tag. Either delete the tag and bump version.rb, or
+  re-tag at the right SHA after fixing version.rb.
+- **"CHANGELOG.md is missing a section for …"** — add the dated section,
+  amend the bump commit, force-push, delete the old tag, retag, push.
+  (Force-push is fine on the bump commit before the publish has
+  succeeded.)
+- **OIDC failure / "no trusted publisher matches"** — check the
+  rubygems.org publisher entry: gem name, repo owner, repo name,
+  workflow filename (`release.yml`, not the full path), and environment
+  must all match. The workflow filename is the basename only, no
+  `.github/workflows/` prefix.
+- **`gem push` fails with `multifactor authentication required`** —
+  trusted publishing satisfies MFA. If you see this error, the workflow
+  fell back to a non-OIDC path; verify `permissions.id-token: write` is
+  set on the job.
+
+### Yanking a release
+
+Yanks happen via the rubygems.org web UI or `gem yank gem-contribute -v
+X.Y.Z`. There is no automated yank flow — by design. If you need to yank,
+also delete the corresponding `vX.Y.Z` tag and GitHub release so the
+record on GitHub matches what's available on rubygems.org.
 
 [gh-device-flow]: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
+[gh-trusted-pub]: https://guides.rubygems.org/trusted-publishing/
