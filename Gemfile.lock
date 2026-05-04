@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    gem-contribute (0.2.0)
+    gem-contribute (0.3.0)
       bundler (>= 2.4)
       dry-initializer (~> 3.2)
       dry-monads (~> 1.10)
@@ -160,7 +160,7 @@ CHECKSUMS
   dry-monads (1.10.0) sha256=68c90d77617c6ce88d60704fc3b233907e6320974152fe75ad947f968006ca39
   dry-operation (1.1.0) sha256=db4227ac0c9313c0c84eda4e26539dcc1e1aae9effdf9e60a397ab2a90a01b92
   erb (6.0.4) sha256=38e3803694be357fe2bfe312487c74beaf9fb4e5beb3e22498952fe1645b95d9
-  gem-contribute (0.2.0)
+  gem-contribute (0.3.0)
   hashdiff (1.2.1) sha256=9c079dbc513dfc8833ab59c0c2d8f230fa28499cc5efb4b8dd276cf931457cd1
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   irb (1.18.0) sha256=de9454a0703a54704b9811a5ef31a60c86949fbf4013fcf244fabc7c775248e3
