@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "dry/monads"
 
 # rubocop:disable RSpec/MultipleMemoizedHelpers
 RSpec.describe GemContribute::CLI::Fork do
+  include Dry::Monads[:result]
+
   let(:stdout) { StringIO.new }
   let(:stderr) { StringIO.new }
   let(:tmpdir) { Dir.mktmpdir("gem-contribute-fork-") }
@@ -30,6 +33,7 @@ RSpec.describe GemContribute::CLI::Fork do
       viewer: "alice", reused: false
     )
   end
+  let(:clone_info) { GemContribute::Operations::Clone::Result.new(path: target_path, reused: false) }
   let(:cli) do
     described_class.new(
       stdout: stdout, stderr: stderr,
@@ -47,8 +51,8 @@ RSpec.describe GemContribute::CLI::Fork do
     before do
       store.store("github.com", access_token: "gho_test")
       allow(resolver).to receive(:resolve).and_return(project)
-      allow(fork_op).to receive(:call).and_return(fork_info)
-      allow(clone_op).to receive(:call).and_return(target_path)
+      allow(fork_op).to receive(:call).and_return(Success(fork_info))
+      allow(clone_op).to receive(:call).and_return(Success(clone_info))
     end
 
     it "exits 2 with usage when no gem name is given" do
@@ -96,6 +100,9 @@ RSpec.describe GemContribute::CLI::Fork do
         adapter: adapter, project: project,
         fork_clone_url: fork_info.clone_url, root: clone_root
       )
+      expect(stdout.string).to include("Forking sidekiq/sidekiq")
+      expect(stdout.string).to include("Forked → alice/sidekiq")
+      expect(stdout.string).to include("Cloned into #{target_path}")
       expect(stdout.string).to include("Forked and cloned")
       expect(stdout.string).to include("default branch")
       expect(stdout.string).to include(target_path)
@@ -117,21 +124,68 @@ RSpec.describe GemContribute::CLI::Fork do
         project: have_attributes(owner: "rubyevents", repo: "rubyevents", host: "github.com")
       )
     end
+
+    it "exits 1 with an adapter-error message when fork_op returns Failure(:adapter_error, ...)" do
+      allow(fork_op).to receive(:call).and_return(Failure([:adapter_error, "rate limit exceeded"]))
+
+      expect(cli.run(["sidekiq"])).to eq(1)
+      expect(stderr.string).to include("fork failed: rate limit exceeded")
+    end
+
+    it "exits 1 with the auth-login hint when fork_op returns Failure(:unauthenticated)" do
+      allow(fork_op).to receive(:call).and_return(Failure(:unauthenticated))
+
+      expect(cli.run(["sidekiq"])).to eq(1)
+      expect(stderr.string).to include("auth login")
+    end
   end
 
   describe "#bootstrap (the shared primitive)" do
-    it "calls the fork op then the clone op and returns [path, fork_info]" do
-      allow(fork_op).to receive(:call).and_return(fork_info)
-      allow(clone_op).to receive(:call).and_return(target_path)
+    it "calls the fork op then the clone op and returns Success([path, fork_info])" do
+      allow(fork_op).to receive(:call).and_return(Success(fork_info))
+      allow(clone_op).to receive(:call).and_return(Success(clone_info))
 
-      path, info = cli.bootstrap(adapter, project)
+      result = cli.bootstrap(adapter, project)
 
+      expect(result).to be_success
+      path, info = result.value!
       expect(path).to eq(target_path)
       expect(info).to eq(fork_info)
       expect(clone_op).to have_received(:call).with(
         adapter: adapter, project: project,
         fork_clone_url: fork_info.clone_url, root: clone_root
       )
+    end
+
+    it "short-circuits and returns the fork_op Failure without calling clone_op" do
+      allow(fork_op).to receive(:call).and_return(Failure([:adapter_error, "fork timed out"]))
+      allow(clone_op).to receive(:call)
+
+      result = cli.bootstrap(adapter, project)
+
+      expect(result).to eq(Failure([:adapter_error, "fork timed out"]))
+      expect(clone_op).not_to have_received(:call)
+    end
+
+    it "propagates a clone_op Failure" do
+      allow(fork_op).to receive(:call).and_return(Success(fork_info))
+      allow(clone_op).to receive(:call).and_return(Failure([:adapter_error, "git clone failed"]))
+
+      result = cli.bootstrap(adapter, project)
+
+      expect(result).to eq(Failure([:adapter_error, "git clone failed"]))
+    end
+
+    it "prints reuse messaging when both ops report reused: true" do
+      reused_fork = fork_info.with(reused: true)
+      reused_clone = GemContribute::Operations::Clone::Result.new(path: target_path, reused: true)
+      allow(fork_op).to receive(:call).and_return(Success(reused_fork))
+      allow(clone_op).to receive(:call).and_return(Success(reused_clone))
+
+      cli.bootstrap(adapter, project)
+
+      expect(stdout.string).to include("Reusing existing fork at alice/sidekiq")
+      expect(stdout.string).to include("Reusing existing clone at #{target_path}")
     end
   end
 end

@@ -1,62 +1,73 @@
 # frozen_string_literal: true
 
+require "dry/initializer"
+require "dry/monads"
+
 module GemContribute
   module CLI
     # `gem-contribute fork <gem|owner/repo> [-e] [-a]`. Resolve the target,
     # bootstrap a fork+clone via `Operations::Fork` + `Operations::Clone`,
     # print a summary, run post-clone hooks. The CLI verb is a thin
     # composition; the host-API ceremony lives in the adapter and the
-    # filesystem policy lives in Operations (ADR-0011).
+    # filesystem policy lives in Operations (ADR-0011). Operations are
+    # output-free per ADR-0012; this verb does the printing.
     class Fork
+      extend Dry::Initializer
       include Workflow
+      include Dry::Monads[:result]
 
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
 
-      # rubocop:disable Metrics/ParameterLists
-      def initialize(stdout: $stdout, stderr: $stderr,
-                     resolver: Resolver.new, store: TokenStore.new,
-                     adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
-                     git: GemContribute::Git.new,
-                     clone_root: DEFAULT_CLONE_ROOT,
-                     post_clone_hooks: nil,
-                     fork_op: nil, clone_op: nil)
-        @stdout = stdout
-        @stderr = stderr
-        @resolver = resolver
-        @store = store
-        @adapter_factory = adapter_factory
-        @clone_root = clone_root
-        @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
-        @fork_op = fork_op || Operations::Fork.new(stdout: stdout)
-        @clone_op = clone_op || Operations::Clone.new(git: git, stdout: stdout)
-      end
-      # rubocop:enable Metrics/ParameterLists
+      option :stdout, default: -> { $stdout }
+      option :stderr, default: -> { $stderr }
+      option :resolver, default: -> { Resolver.new }
+      option :store, default: -> { TokenStore.new }
+      option :adapter_factory,
+             default: -> { ->(token:) { HostAdapters::GitHubAdapter.new(token: token) } }
+      option :git, default: -> { GemContribute::Git.new }
+      option :clone_root, default: -> { DEFAULT_CLONE_ROOT }
+      option :post_clone_hooks, default: -> { PostCloneHooks.new(stdout: stdout, stderr: stderr) }
+      option :fork_op, default: -> { Operations::Fork.new }
+      option :clone_op, default: -> { Operations::Clone.new(git: git) }
 
       def run(argv)
-        with_workflow_rescues("fork") do
-          return missing_clone_root if @clone_root.nil?
+        return missing_clone_root if @clone_root.nil?
 
-          target, flags = parse_argv(argv)
-          return print_usage_error if target.nil?
+        target, flags = parse_argv(argv)
+        return print_usage_error if target.nil?
 
-          adapter = build_adapter
-          return 1 if adapter.nil?
-
+        case build_adapter
+        in Success(adapter)
           project = resolve_target(target, verb: "fork", allow_owner_repo: true)
           return 1 if project.nil?
 
           execute(adapter, project, flags)
+        in Failure(:unauthenticated)
+          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          1
         end
       end
 
       # The bootstrap primitive Fix shares: fork (or reuse) → clone (or
-      # reuse) → upstream remote. Returns `[local_path, fork_info]` where
-      # `fork_info` is an `Operations::Fork::Result`.
+      # reuse) → upstream remote. Returns `Success([local_path, fork_info])`
+      # on the happy path; `Failure(reason)` propagated from Operations
+      # otherwise.
       def bootstrap(adapter, project)
-        fork_info = @fork_op.call(adapter: adapter, project: project)
-        local_path = @clone_op.call(adapter: adapter, project: project,
-                                    fork_clone_url: fork_info.clone_url, root: @clone_root)
-        [local_path, fork_info]
+        @stdout.puts "Forking #{project.owner}/#{project.repo}..."
+        fork_result = @fork_op.call(adapter: adapter, project: project)
+        return fork_result if fork_result.failure?
+
+        fork_info = fork_result.value!
+        @stdout.puts fork_status_line(fork_info, project)
+
+        clone_result = @clone_op.call(adapter: adapter, project: project,
+                                      fork_clone_url: fork_info.clone_url, root: @clone_root)
+        return clone_result if clone_result.failure?
+
+        clone_info = clone_result.value!
+        @stdout.puts clone_status_line(clone_info)
+
+        Success([clone_info.path, fork_info])
       end
 
       private
@@ -80,11 +91,34 @@ module GemContribute
       end
 
       def execute(adapter, project, flags)
-        local_path, fork_info = bootstrap(adapter, project)
+        case bootstrap(adapter, project)
+        in Success(local_path, fork_info)
+          print_summary(local_path, project, fork_info)
+          @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
+          0
+        in Failure(:unauthenticated)
+          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          1
+        in Failure(:adapter_error, message)
+          @stderr.puts "fork failed: #{message}"
+          1
+        end
+      end
 
-        print_summary(local_path, project, fork_info)
-        @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
-        0
+      def fork_status_line(info, project)
+        if info.reused
+          "  Reusing existing fork at #{info.viewer}/#{project.repo}."
+        else
+          "  Forked → #{info.viewer}/#{project.repo}."
+        end
+      end
+
+      def clone_status_line(info)
+        if info.reused
+          "Reusing existing clone at #{info.path}."
+        else
+          "Cloned into #{info.path}."
+        end
       end
 
       def print_summary(local_path, project, fork_info)

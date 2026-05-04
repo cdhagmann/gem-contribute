@@ -63,7 +63,7 @@ module GemContribute
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
       "fork" => ->(o, e) { Fork.new(stdout: o, stderr: e, clone_root: GemContribute::Config.new.clone_root) },
-      "fix" => ->(o, e) {
+      "fix" => lambda { |o, e|
         config = GemContribute::Config.new
         Fix.new(stdout: o, stderr: e, clone_root: config.clone_root, config: config)
       },
