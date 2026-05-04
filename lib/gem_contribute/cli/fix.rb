@@ -6,16 +6,15 @@ module GemContribute
   module CLI
     # `gem-contribute fix <gem>/<issue#> [-e] [-a] [--no-comment]`
     #
-    # The issue-tied path: bootstrap a fork+clone (delegated to `CLI::Fork`'s
-    # primitive, which composes `Operations::Fork` and `Operations::Clone`),
-    # then branch to `gem-contribute/issue-<N>`, post a "working on this"
-    # comment (skippable), optionally open the user's editor or AI tool.
+    # The issue-tied path: run `Operations::FixPipeline` (Fork → Clone →
+    # Branch → Announce), then optionally open the user's editor or AI
+    # tool. The verb is a thin Result-pattern-matching shell around the
+    # pipeline (per ADR-0012).
     class Fix
       include Workflow
       include Dry::Monads[:result]
 
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
-      BRANCH_PREFIX = "gem-contribute/issue-"
 
       # rubocop:disable Metrics/ParameterLists
       def initialize(stdout: $stdout,
@@ -27,21 +26,16 @@ module GemContribute
                      clone_root: DEFAULT_CLONE_ROOT,
                      post_clone_hooks: nil,
                      config: nil,
-                     fork: nil)
+                     pipeline: nil)
         @stdout = stdout
         @stderr = stderr
         @resolver = resolver
         @store = store
         @adapter_factory = adapter_factory
-        @git = git
         @clone_root = clone_root
         @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
         @config = config || GemContribute::Config.new
-        @fork = fork || Fork.new(stdout: stdout, stderr: stderr,
-                                 resolver: resolver, store: store,
-                                 adapter_factory: adapter_factory,
-                                 git: @git, clone_root: clone_root,
-                                 post_clone_hooks: @post_clone_hooks)
+        @pipeline = pipeline || Operations::FixPipeline.new(git: git)
       end
       # rubocop:enable Metrics/ParameterLists
 
@@ -87,11 +81,18 @@ module GemContribute
       end
 
       def execute(adapter, project, issue, flags)
-        was_resuming = branch_exists_locally?(project, issue)
+        allow_announce = !flags[:no_comment] &&
+                         @config.comment_on_fix?("#{project.owner}/#{project.repo}")
 
-        case @fork.bootstrap(adapter, project)
-        in Success(local_path, fork_info)
-          finish_fix(adapter, project, issue, flags, local_path, fork_info, was_resuming: was_resuming)
+        @stdout.puts "Forking #{project.owner}/#{project.repo}..."
+
+        case @pipeline.call(adapter: adapter, project: project, issue: issue,
+                            root: @clone_root, allow_announce: allow_announce)
+        in Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: announce_data)
+          print_summary(clone_data.path, branch_data.name, fork_data)
+          print_announce_outcome(announce_data, issue)
+          @post_clone_hooks.call(clone_data.path, editor: flags[:editor], ai_tool: flags[:ai_tool])
+          0
         in Failure(:unauthenticated)
           @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
           1
@@ -99,23 +100,6 @@ module GemContribute
           @stderr.puts "fix failed: #{message}"
           1
         end
-      rescue GemContribute::AdapterError => e
-        # Catches AdapterError from non-Operation paths still in this verb
-        # (currently @git.checkout_branch in finish_fix). #27 will fold the
-        # branch step into Operations::Branch and remove the need for this.
-        @stderr.puts "fix failed: #{e.message}"
-        1
-      end
-
-      def finish_fix(adapter, project, issue, flags, local_path, fork_info, was_resuming:)
-        branch_name = "#{BRANCH_PREFIX}#{issue}"
-        @git.checkout_branch(local_path, branch_name)
-
-        print_summary(local_path, branch_name, fork_info)
-        announce_or_skip(adapter, project, issue, fork_info.viewer,
-                         was_resuming: was_resuming, flags: flags)
-        @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
-        0
       end
 
       def print_summary(local_path, branch_name, fork_info)
@@ -128,30 +112,16 @@ module GemContribute
         @stdout.puts "Next: cd #{local_path} && make your changes, then `gem-contribute submit`."
       end
 
-      # True if `gem-contribute/issue-<N>` already exists locally — the
-      # user is resuming this specific issue (the clone is shared across
-      # issues in the same repo, but the branch is per-issue).
-      def branch_exists_locally?(project, issue)
-        target = File.join(@clone_root, project.owner, project.repo)
-        return false unless File.directory?(File.join(target, ".git"))
-
-        @git.branch_exists?(target, "#{BRANCH_PREFIX}#{issue}")
-      end
-
-      def announce_or_skip(adapter, project, issue, viewer, was_resuming:, flags:)
-        return unless should_announce?(project, viewer, was_resuming: was_resuming, flags: flags)
-
-        IssueAnnouncer.announce_working(
-          adapter: adapter, project: project, issue: issue,
-          stdout: @stdout, stderr: @stderr
-        )
-      end
-
-      def should_announce?(project, viewer, was_resuming:, flags:)
-        !flags[:no_comment] &&
-          !was_resuming &&
-          viewer != project.owner &&
-          @config.comment_on_fix?("#{project.owner}/#{project.repo}")
+      def print_announce_outcome(announce_result, issue)
+        case announce_result
+        in Success(:posted)
+          @stdout.puts "Posted 'working on this' comment to issue ##{issue}."
+        in Success(:skipped)
+          # no output for skipped — quiet success
+        in Failure(:announce_failed, message)
+          @stderr.puts "Note: couldn't post 'working on this' comment to issue ##{issue}: " \
+                       "#{message}. Continuing."
+        end
       end
     end
   end

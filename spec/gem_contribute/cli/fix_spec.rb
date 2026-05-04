@@ -14,7 +14,7 @@ RSpec.describe GemContribute::CLI::Fix do
   let(:resolver) { instance_double(GemContribute::Resolver) }
   let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }
   let(:git) { instance_double(GemContribute::Git) }
-  let(:fork_cli) { instance_double(GemContribute::CLI::Fork) }
+  let(:pipeline) { instance_double(GemContribute::Operations::FixPipeline) }
   let(:clone_root) { File.join(tmpdir, "code", "oss") }
   let(:config) { GemContribute::Config.new(path: File.join(tmpdir, "config.yml")) }
   let(:cli) do
@@ -23,7 +23,7 @@ RSpec.describe GemContribute::CLI::Fix do
       resolver: resolver, store: store,
       adapter_factory: ->(**) { adapter },
       git: git, clone_root: clone_root,
-      config: config, fork: fork_cli
+      config: config, pipeline: pipeline
     )
   end
 
@@ -34,7 +34,7 @@ RSpec.describe GemContribute::CLI::Fix do
     )
   end
   let(:target) { File.join(clone_root, "sidekiq", "sidekiq") }
-  let(:fork_info) do
+  let(:fork_data) do
     GemContribute::Operations::Fork::Result.new(
       clone_url: "https://github.com/alice/sidekiq.git",
       fork_url: "https://github.com/alice/sidekiq",
@@ -42,14 +42,16 @@ RSpec.describe GemContribute::CLI::Fix do
       viewer: "alice", reused: false
     )
   end
+  let(:clone_data) { GemContribute::Operations::Clone::Result.new(path: target, reused: false) }
+  let(:branch_data) { GemContribute::Operations::Branch::Result.new(name: "gem-contribute/issue-1234") }
+  let(:pipeline_success) do
+    Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: Success(:posted))
+  end
 
   before do
     store.store("github.com", access_token: "gho_test")
     allow(resolver).to receive(:resolve).and_return(project)
-    allow(git).to receive(:checkout_branch)
-    allow(git).to receive(:branch_exists?).and_return(false)
-    allow(fork_cli).to receive(:bootstrap).with(adapter, project).and_return(Success([target, fork_info]))
-    allow(GemContribute::CLI::IssueAnnouncer).to receive(:announce_working).and_return(:posted)
+    allow(pipeline).to receive(:call).and_return(pipeline_success)
   end
 
   after { FileUtils.rm_rf(tmpdir) }
@@ -74,20 +76,22 @@ RSpec.describe GemContribute::CLI::Fix do
       resolver: resolver, store: store,
       adapter_factory: ->(**) { adapter },
       git: git, clone_root: nil,
-      fork: fork_cli
+      pipeline: pipeline
     )
     expect(cli_no_clone_root.run(["sidekiq/1"])).to eq(1)
     expect(stderr.string).to include("gem-contribute init")
   end
 
-  it "delegates the fork+clone bootstrap and then branches", :aggregate_failures do
+  it "delegates to FixPipeline and prints a summary", :aggregate_failures do
     expect(cli.run(["sidekiq/1234"])).to eq(0)
-    expect(fork_cli).to have_received(:bootstrap).with(adapter, project)
-    expect(git).to have_received(:checkout_branch).with(target, "gem-contribute/issue-1234")
+    expect(pipeline).to have_received(:call).with(
+      adapter: adapter, project: project, issue: "1234",
+      root: clone_root, allow_announce: true
+    )
     expect(stdout.string).to include(target)
     expect(stdout.string).to include("gem-contribute/issue-1234")
-    expect(stdout.string).to include(fork_info.upstream_url)
-    expect(stdout.string).to include(fork_info.fork_url)
+    expect(stdout.string).to include(fork_data.upstream_url)
+    expect(stdout.string).to include(fork_data.fork_url)
   end
 
   it "fails clearly if the gem doesn't resolve to github.com" do
@@ -101,16 +105,16 @@ RSpec.describe GemContribute::CLI::Fix do
     expect(stderr.string).to include("only github.com is supported")
   end
 
-  it "surfaces a Failure([:adapter_error, ...]) from the bootstrap with a friendly message" do
-    allow(fork_cli).to receive(:bootstrap)
+  it "surfaces a Failure([:adapter_error, ...]) from the pipeline with a friendly message" do
+    allow(pipeline).to receive(:call)
       .and_return(Failure([:adapter_error, "fork not reachable after 60s"]))
 
     expect(cli.run(["sidekiq/1"])).to eq(1)
     expect(stderr.string).to include("fix failed: fork not reachable")
   end
 
-  it "surfaces a Failure(:unauthenticated) from the bootstrap with the auth-login hint" do
-    allow(fork_cli).to receive(:bootstrap).and_return(Failure(:unauthenticated))
+  it "surfaces a Failure(:unauthenticated) from the pipeline with the auth-login hint" do
+    allow(pipeline).to receive(:call).and_return(Failure(:unauthenticated))
 
     expect(cli.run(["sidekiq/1"])).to eq(1)
     expect(stderr.string).to include("auth login")
@@ -125,7 +129,7 @@ RSpec.describe GemContribute::CLI::Fix do
         adapter_factory: ->(**) { adapter },
         git: git, clone_root: clone_root,
         post_clone_hooks: hooks,
-        config: config, fork: fork_cli
+        config: config, pipeline: pipeline
       )
     end
 
@@ -145,70 +149,61 @@ RSpec.describe GemContribute::CLI::Fix do
     end
   end
 
-  describe "issue comment integration" do
-    it "announces working on the issue by default" do
-      expect(cli.run(["sidekiq/1234"])).to eq(0)
-      expect(GemContribute::CLI::IssueAnnouncer).to have_received(:announce_working)
-        .with(adapter: adapter, project: project, issue: "1234",
-              stdout: stdout, stderr: stderr)
+  describe "announce gating (allow_announce passed to FixPipeline)" do
+    it "passes allow_announce: true by default" do
+      cli.run(["sidekiq/1234"])
+      expect(pipeline).to have_received(:call)
+        .with(hash_including(allow_announce: true))
     end
 
-    it "skips the announce when --no-comment is passed" do
-      expect(cli.run(["sidekiq/1234", "--no-comment"])).to eq(0)
-      expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+    it "passes allow_announce: false when --no-comment is given" do
+      cli.run(["sidekiq/1234", "--no-comment"])
+      expect(pipeline).to have_received(:call)
+        .with(hash_including(allow_announce: false))
     end
 
-    it "skips the announce when the issue's branch already exists locally (resuming)" do
-      FileUtils.mkdir_p(File.join(target, ".git"))
-      allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(true)
-
-      expect(cli.run(["sidekiq/1234"])).to eq(0)
-      expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
+    it "passes allow_announce: false when comment_on_fix is disabled in config" do
+      config.set("comment_on_fix", "false")
+      cli.run(["sidekiq/1234"])
+      expect(pipeline).to have_received(:call)
+        .with(hash_including(allow_announce: false))
     end
 
-    it "announces when the clone exists but the branch for this issue is new" do
-      # User worked on issue 4 yesterday (clone exists), now starting issue 1234 fresh.
-      FileUtils.mkdir_p(File.join(target, ".git"))
-      allow(git).to receive(:branch_exists?).with(target, "gem-contribute/issue-1234").and_return(false)
-
-      expect(cli.run(["sidekiq/1234"])).to eq(0)
-      expect(GemContribute::CLI::IssueAnnouncer).to have_received(:announce_working)
-    end
-
-    it "skips the announce when the viewer owns the upstream" do
-      owned = GemContribute::Project.new(
-        gem_name: "rubocop", host: "github.com",
-        owner: "alice", repo: "rubocop", metadata: {}
-      )
-      allow(resolver).to receive(:resolve).and_return(owned)
-      owned_target = File.join(clone_root, "alice", "rubocop")
-      allow(fork_cli).to receive(:bootstrap).with(adapter, owned).and_return(Success([owned_target, fork_info]))
-
-      expect(cli.run(["rubocop/1234"])).to eq(0)
-      expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
-    end
-
-    context "when comment_on_fix is false in config" do
-      before { config.set("comment_on_fix", "false") }
-
-      it "skips the announce" do
-        expect(cli.run(["sidekiq/1234"])).to eq(0)
-        expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
-      end
-    end
-
-    context "when a per-repo override turns it off" do
-      before do
-        File.write(File.join(tmpdir, "config.yml"),
-                   YAML.dump("comment_on_fix" => true,
-                             "comment_on_fix_overrides" => { "sidekiq/sidekiq" => false }))
-      end
-
-      it "skips the announce" do
-        expect(cli.run(["sidekiq/1234"])).to eq(0)
-        expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)
-      end
+    it "passes allow_announce: false when a per-repo override turns it off" do
+      File.write(File.join(tmpdir, "config.yml"),
+                 YAML.dump("comment_on_fix" => true,
+                           "comment_on_fix_overrides" => { "sidekiq/sidekiq" => false }))
+      cli.run(["sidekiq/1234"])
+      expect(pipeline).to have_received(:call)
+        .with(hash_including(allow_announce: false))
     end
   end
-  # rubocop:enable RSpec/MultipleMemoizedHelpers
+
+  describe "announce outcome rendering" do
+    it "prints the 'Posted' line when pipeline returns Success(:posted)" do
+      cli.run(["sidekiq/1234"])
+      expect(stdout.string).to include("Posted 'working on this' comment to issue #1234")
+    end
+
+    it "stays silent when pipeline returns Success(:skipped)" do
+      allow(pipeline).to receive(:call).and_return(
+        Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: Success(:skipped))
+      )
+      cli.run(["sidekiq/1234"])
+      expect(stdout.string).not_to include("Posted")
+    end
+
+    it "prints the soft-failure 'Note' on stderr when announce returned Failure" do
+      allow(pipeline).to receive(:call).and_return(
+        Success(fork: fork_data, clone: clone_data, branch: branch_data,
+                announce: Failure([:announce_failed, "GitHub returned 422"]))
+      )
+
+      expect(cli.run(["sidekiq/1234"])).to eq(0)
+      expect(stderr.string).to include("Note: couldn't post 'working on this' comment to issue #1234")
+      expect(stderr.string).to include("GitHub returned 422")
+      expect(stderr.string).to include("Continuing.")
+    end
+  end
 end
+# rubocop:enable RSpec/MultipleMemoizedHelpers
