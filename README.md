@@ -22,7 +22,14 @@ The premise: the gems in your `Gemfile.lock` are the projects you have the most 
 
 ## Status
 
-Early. v0.1 is a CLI. A Rooibos TUI is planned (see [issue #2](https://github.com/cdhagmann/gem-contribute/issues/2)). This is being built as a workshop project for **[Blue Ridge Ruby 2026](https://blueridgeruby.com)**. Expect rough edges through the conference.
+v0.x; the first 1.0-track release ships via [Trusted Publishing](https://guides.rubygems.org/trusted-publishing/) on rubygems.org once the polish phase lands.
+
+The 1.0 surface is the standalone CLI shown above. The roadmap that follows it:
+
+- **v1.x** — `bundle contribute` and `gem contribute` plugins (so the tool is reachable from whatever invocation surface you're already in), plus multi-host adapters (GitLab, gem.coop). Same CLI shape; additional entry points and additional sources.
+- **v2.0** — Rooibos TUI as the bare-invocation experience for `gem-contribute`. Major version because bare-invocation behavior changes when the TUI auto-launches. ([issue #2](https://github.com/cdhagmann/gem-contribute/issues/2))
+
+[`docs/ROADMAP.md`](docs/ROADMAP.md) has the detail; [ADR-0015](docs/adr/0015-descope-v1-cli-only.md) explains why this sequencing.
 
 ## Install
 
@@ -89,9 +96,7 @@ See [`docs/design.md`](docs/design.md) for the architecture overview and [`docs/
 
 ## Contributing
 
-The tool is *for* finding contributable projects, so it had better be one. See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues tagged `good first issue` are real and reviewed.
-
-If you're attending Blue Ridge Ruby 2026 and arrived here from the workshop, see [`docs/workshop.md`](docs/workshop.md) for the exercises.
+The tool is *for* finding contributable projects, so it had better be one. See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues tagged [`good first issue`](https://github.com/cdhagmann/gem-contribute/labels/good%20first%20issue) are real and reviewed; issues with [`v1.x`](https://github.com/cdhagmann/gem-contribute/labels/v1.x) and [`v2.0`](https://github.com/cdhagmann/gem-contribute/labels/v2.0) labels indicate which release they're targeted at.
 
 ## Disclosure
 

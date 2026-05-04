@@ -19,7 +19,8 @@ Format: [Michael Nygard's template](https://github.com/joelparkerhenderson/archi
 - [0011 — HostAdapter owns host verbs; Operations compose them; CLI verbs compose Operations](0011-host-adapter-owns-host-verbs.md)
 - [0012 — Output-free service objects, dry-monads Result contract, three-interface architecture](0012-output-free-service-objects-three-interface-architecture.md) — packaging amended by 0014; service-layer contract stands
 - [0013 — Revert TUI framework to Rooibos](0013-revert-to-rooibos.md) — supersedes 0010, restores 0008's substance
-- [0014 — Ship Bundler and RubyGems plugins as v1 interfaces](0014-ship-bundler-and-rubygems-plugins.md) — amends 0006 and 0012
+- [0014 — Ship Bundler and RubyGems plugins as v1 interfaces](0014-ship-bundler-and-rubygems-plugins.md) — amends 0006 and 0012; shipping order amended by 0015
+- [0015 — Descope v1.0 to standalone CLI; plugins to v1.x; TUI to v2.0](0015-descope-v1-cli-only.md) — amends 0014
 
 ## When to add an ADR
 

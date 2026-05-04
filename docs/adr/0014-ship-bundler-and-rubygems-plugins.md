@@ -1,8 +1,9 @@
 # ADR 0014: Ship Bundler and RubyGems plugins as v1 interfaces
 
-**Status:** Accepted
+**Status:** Accepted (amended by [ADR-0015](0015-descope-v1-cli-only.md) on shipping order)
 **Date:** 2026-05-03
 **Amends:** [ADR-0006](0006-standalone-gem-not-plugin.md), [ADR-0012](0012-output-free-service-objects-three-interface-architecture.md)
+**Amended by:** [ADR-0015](0015-descope-v1-cli-only.md) — plugin shims defer from v1.0 to v1.x; the "plugins live inside `gem-contribute`, not as separate gems" architectural decision in this ADR is preserved unchanged
 
 ## Context
 
