@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "dry/initializer"
 require "dry/monads"
 
 module GemContribute
@@ -11,33 +12,23 @@ module GemContribute
     # tool. The verb is a thin Result-pattern-matching shell around the
     # pipeline (per ADR-0012).
     class Fix
+      extend Dry::Initializer
       include Workflow
       include Dry::Monads[:result]
 
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
 
-      # rubocop:disable Metrics/ParameterLists
-      def initialize(stdout: $stdout,
-                     stderr: $stderr,
-                     resolver: Resolver.new,
-                     store: TokenStore.new,
-                     adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
-                     git: GemContribute::Git.new,
-                     clone_root: DEFAULT_CLONE_ROOT,
-                     post_clone_hooks: nil,
-                     config: nil,
-                     pipeline: nil)
-        @stdout = stdout
-        @stderr = stderr
-        @resolver = resolver
-        @store = store
-        @adapter_factory = adapter_factory
-        @clone_root = clone_root
-        @post_clone_hooks = post_clone_hooks || PostCloneHooks.new(stdout: stdout, stderr: stderr)
-        @config = config || GemContribute::Config.new
-        @pipeline = pipeline || Operations::FixPipeline.new(git: git)
-      end
-      # rubocop:enable Metrics/ParameterLists
+      option :stdout, default: -> { $stdout }
+      option :stderr, default: -> { $stderr }
+      option :resolver, default: -> { Resolver.new }
+      option :store, default: -> { TokenStore.new }
+      option :adapter_factory,
+             default: -> { ->(token:) { HostAdapters::GitHubAdapter.new(token: token) } }
+      option :git, default: -> { GemContribute::Git.new }
+      option :clone_root, default: -> { DEFAULT_CLONE_ROOT }
+      option :post_clone_hooks, default: -> { PostCloneHooks.new(stdout: stdout, stderr: stderr) }
+      option :config, default: -> { GemContribute::Config.new }
+      option :pipeline, default: -> { Operations::FixPipeline.new(git: git) }
 
       def run(argv)
         return missing_clone_root if @clone_root.nil?
