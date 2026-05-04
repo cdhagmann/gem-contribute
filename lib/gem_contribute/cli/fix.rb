@@ -46,20 +46,22 @@ module GemContribute
       # rubocop:enable Metrics/ParameterLists
 
       def run(argv)
-        with_workflow_rescues("fix") do
-          return missing_clone_root if @clone_root.nil?
+        return missing_clone_root if @clone_root.nil?
 
-          target, flags = parse_argv(argv)
-          return print_usage_error if target.nil? || !target.include?("/")
+        target, flags = parse_argv(argv)
+        return print_usage_error if target.nil? || !target.include?("/")
 
-          gem_name, issue = target.split("/", 2)
-          adapter = build_adapter
-          return 1 if adapter.nil?
+        gem_name, issue = target.split("/", 2)
 
+        case build_adapter
+        in Success(adapter)
           project = resolve_target(gem_name, verb: "fix")
           return 1 if project.nil?
 
           execute(adapter, project, issue, flags)
+        in Failure(:unauthenticated)
+          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          1
         end
       end
 
@@ -97,6 +99,12 @@ module GemContribute
           @stderr.puts "fix failed: #{message}"
           1
         end
+      rescue GemContribute::AdapterError => e
+        # Catches AdapterError from non-Operation paths still in this verb
+        # (currently @git.checkout_branch in finish_fix). #27 will fold the
+        # branch step into Operations::Branch and remove the need for this.
+        @stderr.puts "fix failed: #{e.message}"
+        1
       end
 
       def finish_fix(adapter, project, issue, flags, local_path, fork_info, was_resuming:)

@@ -37,19 +37,20 @@ module GemContribute
       # rubocop:enable Metrics/ParameterLists
 
       def run(argv)
-        with_workflow_rescues("fork") do
-          return missing_clone_root if @clone_root.nil?
+        return missing_clone_root if @clone_root.nil?
 
-          target, flags = parse_argv(argv)
-          return print_usage_error if target.nil?
+        target, flags = parse_argv(argv)
+        return print_usage_error if target.nil?
 
-          adapter = build_adapter
-          return 1 if adapter.nil?
-
+        case build_adapter
+        in Success(adapter)
           project = resolve_target(target, verb: "fork", allow_owner_repo: true)
           return 1 if project.nil?
 
           execute(adapter, project, flags)
+        in Failure(:unauthenticated)
+          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          1
         end
       end
 
