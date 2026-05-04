@@ -94,7 +94,7 @@ module GemContribute
       def execute(adapter, project, flags)
         case bootstrap(adapter, project)
         in Success(local_path, fork_info)
-          print_summary(local_path, project, fork_info)
+          print_summary(local_path, project, fork_info, flags)
           @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
           0
         in Failure(:unauthenticated)
@@ -122,15 +122,23 @@ module GemContribute
         end
       end
 
-      def print_summary(local_path, project, fork_info)
+      def print_summary(local_path, project, fork_info, flags)
         @output.info("Forked and cloned. You're on the default branch.")
         @output.info("  path:     #{local_path}")
         @output.info("  upstream: #{fork_info.upstream_url}")
         @output.info("  fork:     #{fork_info.fork_url}")
         @output.info("")
-        @output.info("Next: cd #{local_path} && explore. When you pick an issue, " \
-                     "`gem-contribute fix #{project.gem_name}/<issue#>` " \
-                     "branches off the default.")
+        @output.info(next_hint(local_path, project, flags))
+      end
+
+      def next_hint(local_path, project, flags)
+        fix_command = "`gem-contribute fix #{project.gem_name}/<issue#>`"
+        if flags[:editor] || flags[:ai_tool]
+          "Next: pick an issue and run #{fix_command} to branch off the default."
+        else
+          "Next: cd #{local_path} && $EDITOR . " \
+            "When you pick an issue, #{fix_command} branches off the default."
+        end
       end
     end
   end

@@ -26,6 +26,10 @@ All notable changes to this project will be documented here. The format is based
 
 - The `fork-clone-branch` CLI alias has been removed. Use `gem-contribute fix` instead — same behavior, shorter to type.
 
+### Fixed
+
+- `gem-contribute fork` no longer prints `cd <path> && explore` — `explore` was meant as English but read as a (non-existent) shell command, so a copy-paste produced `command not found`. The "Next:" hint is now conditional on `-e` / `-a`: with neither flag it suggests `cd <path> && $EDITOR .`; with either flag it skips the directory step (you're already in your editor) and just points at the `fix` command.
+
 ## [0.2.0] - 2026-05-02
 
 ### Added
