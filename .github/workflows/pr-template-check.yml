@@ -1,0 +1,100 @@
+name: PR template check
+
+# Verifies that PR descriptions include all required sections from
+# .github/PULL_REQUEST_TEMPLATE.md. Posts (or updates) a single comment
+# listing what's missing, and fails the check until the body is fixed.
+#
+# Security note: pull_request_target gives us write access to comment
+# back on the PR. We never check out PR HEAD; the body is read via the
+# event payload (data, not code).
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  template-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required sections
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+
+          MARKER="<!-- pr-template-check -->"
+
+          # Required headings — must appear verbatim somewhere in the body.
+          required=(
+            "## Summary"
+            "## Linked issue / ADR"
+            "## Working agreement"
+            "## Test plan"
+          )
+          # "## Notes for reviewer" is intentionally optional — the template
+          # tells contributors to delete it when there's nothing to add.
+
+          missing=()
+          for heading in "${required[@]}"; do
+            if ! grep -Fq "$heading" <<< "${PR_BODY:-}"; then
+              missing+=("$heading")
+            fi
+          done
+
+          # Strip HTML comments and template placeholder text, then check
+          # the body has *some* substance. Catches PRs filed with the raw
+          # unmodified template.
+          stripped=$(printf '%s' "${PR_BODY:-}" | perl -0777 -pe 's/<!--.*?-->//gs')
+          # Drop heading lines and checklist scaffolding; what's left should
+          # be the contributor's own prose.
+          prose=$(printf '%s' "$stripped" | grep -Ev '^\s*(##|- \[[ x]\]|$)' || true)
+          prose_chars=$(printf '%s' "$prose" | tr -d '[:space:]' | wc -c | tr -d ' ')
+
+          # Find any prior bot comment so we can edit instead of stacking.
+          prior_id=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$MARKER\"))) | .id" \
+            | head -n1)
+
+          if [ ${#missing[@]} -eq 0 ] && [ "$prose_chars" -ge 40 ]; then
+            echo "PR body looks good."
+            if [ -n "$prior_id" ]; then
+              gh api -X PATCH "repos/$REPO/issues/comments/$prior_id" \
+                -f body="$MARKER
+✅ PR template check passed. Thanks for filling out the template."
+            fi
+            exit 0
+          fi
+
+          {
+            echo "$MARKER"
+            echo "👋 This PR is missing pieces from the [PR template](https://github.com/$REPO/blob/main/.github/PULL_REQUEST_TEMPLATE.md):"
+            echo ""
+            if [ ${#missing[@]} -gt 0 ]; then
+              echo "**Missing sections:**"
+              for m in "${missing[@]}"; do
+                echo "- \`$m\`"
+              done
+              echo ""
+            fi
+            if [ "$prose_chars" -lt 40 ]; then
+              echo "**Body looks unfilled** — the template comments are still there but no actual content has been written. Please fill in at least the Summary and Test plan."
+              echo ""
+            fi
+            echo "Edit the PR description (no new commit needed) and the check will re-run automatically. See [CLAUDE.md](https://github.com/$REPO/blob/main/CLAUDE.md) for why these sections matter."
+          } > /tmp/comment.md
+
+          if [ -n "$prior_id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$prior_id" \
+              -F body=@/tmp/comment.md
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body-file /tmp/comment.md
+          fi
+
+          echo "::error::PR template is incomplete — see the bot comment on the PR."
+          exit 1
