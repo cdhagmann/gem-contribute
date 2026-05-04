@@ -143,21 +143,29 @@ When cutting a new version:
 1. **Bump the version.** Edit `lib/gem_contribute/version.rb` to the new
    `MAJOR.MINOR.PATCH`. Follow [SemVer](https://semver.org/).
 
-2. **Update CHANGELOG.md.** Move the contents of `[Unreleased]` into a new
-   dated section: `## [X.Y.Z] - YYYY-MM-DD`. Leave `[Unreleased]` empty
-   for the next cycle. The release workflow refuses to publish if it
-   can't find a `## [X.Y.Z]` section matching the tag.
+2. **Regenerate `Gemfile.lock`.** Run `bundle install`. The lockfile's
+   `gem-contribute (X.Y.Z)` line must match the new version in both the
+   PATH spec at the top and the CHECKSUMS section near the bottom. CI
+   runs bundler in deployment/`--frozen` mode and refuses to install if
+   the lockfile is out of sync with the gemspec.
 
-3. **Commit on `main`.** Conventional message: `Bump gem-contribute to X.Y.Z`.
+3. **Update CHANGELOG.md.** Move the contents of `[Unreleased]` into a
+   new dated section: `## [X.Y.Z] - YYYY-MM-DD`. Leave `[Unreleased]`
+   empty for the next cycle. The release workflow refuses to publish if
+   it can't find a `## [X.Y.Z]` section matching the tag.
 
-4. **Tag and push.**
+4. **Commit on `main`.** Bump version.rb, the regenerated Gemfile.lock,
+   and CHANGELOG.md all in the same commit. Conventional message:
+   `Bump gem-contribute to X.Y.Z`.
+
+5. **Tag and push.**
 
    ```sh
    git tag -a vX.Y.Z -m "X.Y.Z"
    git push origin main vX.Y.Z
    ```
 
-5. **Watch the Actions tab.** The workflow will:
+6. **Watch the Actions tab.** The workflow will:
    - verify the tag/version/CHANGELOG match
    - run rubocop and rspec
    - request an OIDC token, exchange it for a short-lived rubygems API
@@ -167,7 +175,7 @@ When cutting a new version:
    If the environment has a required-reviewer protection rule, the
    workflow will pause for your manual approval before the publish step.
 
-6. **Sanity check.** After publish, `gem info gem-contribute` should show
+7. **Sanity check.** After publish, `gem info gem-contribute` should show
    the new version. The draft GitHub release is yours to edit and publish
    when ready.
 
