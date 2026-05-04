@@ -146,7 +146,6 @@ module GemContribute
         @stdout.puts opened ? "Opened browser to:" : "Open this URL to file the PR:"
         @stdout.puts "  #{url}"
       end
-
     end
   end
 end

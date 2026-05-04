@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "dry/monads"
 
 # rubocop:disable RSpec/MultipleMemoizedHelpers
 RSpec.describe GemContribute::CLI::Fix do
+  include Dry::Monads[:result]
+
   let(:stdout) { StringIO.new }
   let(:stderr) { StringIO.new }
   let(:tmpdir) { Dir.mktmpdir("gem-contribute-fix-") }
@@ -45,7 +48,7 @@ RSpec.describe GemContribute::CLI::Fix do
     allow(resolver).to receive(:resolve).and_return(project)
     allow(git).to receive(:checkout_branch)
     allow(git).to receive(:branch_exists?).and_return(false)
-    allow(fork_cli).to receive(:bootstrap).with(adapter, project).and_return([target, fork_info])
+    allow(fork_cli).to receive(:bootstrap).with(adapter, project).and_return(Success([target, fork_info]))
     allow(GemContribute::CLI::IssueAnnouncer).to receive(:announce_working).and_return(:posted)
   end
 
@@ -98,12 +101,19 @@ RSpec.describe GemContribute::CLI::Fix do
     expect(stderr.string).to include("only github.com is supported")
   end
 
-  it "surfaces an AdapterError from the bootstrap with a friendly message" do
+  it "surfaces a Failure([:adapter_error, ...]) from the bootstrap with a friendly message" do
     allow(fork_cli).to receive(:bootstrap)
-      .and_raise(GemContribute::AdapterError, "fork not reachable after 60s")
+      .and_return(Failure([:adapter_error, "fork not reachable after 60s"]))
 
     expect(cli.run(["sidekiq/1"])).to eq(1)
-    expect(stderr.string).to include("fork not reachable")
+    expect(stderr.string).to include("fix failed: fork not reachable")
+  end
+
+  it "surfaces a Failure(:unauthenticated) from the bootstrap with the auth-login hint" do
+    allow(fork_cli).to receive(:bootstrap).and_return(Failure(:unauthenticated))
+
+    expect(cli.run(["sidekiq/1"])).to eq(1)
+    expect(stderr.string).to include("auth login")
   end
 
   describe "with -e and -a flags" do
@@ -172,7 +182,7 @@ RSpec.describe GemContribute::CLI::Fix do
       )
       allow(resolver).to receive(:resolve).and_return(owned)
       owned_target = File.join(clone_root, "alice", "rubocop")
-      allow(fork_cli).to receive(:bootstrap).with(adapter, owned).and_return([owned_target, fork_info])
+      allow(fork_cli).to receive(:bootstrap).with(adapter, owned).and_return(Success([owned_target, fork_info]))
 
       expect(cli.run(["rubocop/1234"])).to eq(0)
       expect(GemContribute::CLI::IssueAnnouncer).not_to have_received(:announce_working)

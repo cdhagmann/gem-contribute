@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "dry/monads"
+
 module GemContribute
   module CLI
     # `gem-contribute fix <gem>/<issue#> [-e] [-a] [--no-comment]`
@@ -10,6 +12,7 @@ module GemContribute
     # comment (skippable), optionally open the user's editor or AI tool.
     class Fix
       include Workflow
+      include Dry::Monads[:result]
 
       DEFAULT_CLONE_ROOT = File.expand_path("~/code/oss")
       BRANCH_PREFIX = "gem-contribute/issue-"
@@ -83,7 +86,20 @@ module GemContribute
 
       def execute(adapter, project, issue, flags)
         was_resuming = branch_exists_locally?(project, issue)
-        local_path, fork_info = @fork.bootstrap(adapter, project)
+
+        case @fork.bootstrap(adapter, project)
+        in Success(local_path, fork_info)
+          finish_fix(adapter, project, issue, flags, local_path, fork_info, was_resuming: was_resuming)
+        in Failure(:unauthenticated)
+          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          1
+        in Failure(:adapter_error, message)
+          @stderr.puts "fix failed: #{message}"
+          1
+        end
+      end
+
+      def finish_fix(adapter, project, issue, flags, local_path, fork_info, was_resuming:)
         branch_name = "#{BRANCH_PREFIX}#{issue}"
         @git.checkout_branch(local_path, branch_name)
 

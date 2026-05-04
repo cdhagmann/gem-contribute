@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
-require "stringio"
+require "dry/monads"
 
 RSpec.describe GemContribute::Operations::Fork do
-  let(:stdout) { StringIO.new }
+  include Dry::Monads[:result]
+
   let(:adapter) { instance_double(GemContribute::HostAdapters::GitHubAdapter) }
   let(:project) do
     GemContribute::Project.new(
@@ -11,14 +12,14 @@ RSpec.describe GemContribute::Operations::Fork do
       owner: "sidekiq", repo: "sidekiq", metadata: {}
     )
   end
-  let(:operation) { described_class.new(stdout: stdout) }
+  let(:operation) { described_class.new }
 
   before do
     allow(adapter).to receive(:repo_url).with("sidekiq", "sidekiq")
                                         .and_return("https://github.com/sidekiq/sidekiq")
   end
 
-  it "delegates to adapter.fork and packages the result with upstream_url" do
+  it "returns Success with the fork data and the upstream URL" do
     allow(adapter).to receive(:fork).with(project).and_return(
       GemContribute::HostAdapter::ForkResult.new(
         clone_url: "https://github.com/alice/sidekiq.git",
@@ -29,7 +30,8 @@ RSpec.describe GemContribute::Operations::Fork do
 
     result = operation.call(adapter: adapter, project: project)
 
-    expect(result).to have_attributes(
+    expect(result).to be_success
+    expect(result.value!).to have_attributes(
       clone_url: "https://github.com/alice/sidekiq.git",
       fork_url: "https://github.com/alice/sidekiq",
       upstream_url: "https://github.com/sidekiq/sidekiq",
@@ -37,26 +39,28 @@ RSpec.describe GemContribute::Operations::Fork do
     )
   end
 
-  it "prints a 'Forked' line when the fork was just created" do
-    allow(adapter).to receive(:fork).and_return(
-      GemContribute::HostAdapter::ForkResult.new(
-        clone_url: "x", fork_url: "y", viewer: "alice", reused: false
-      )
-    )
-
-    operation.call(adapter: adapter, project: project)
-    expect(stdout.string).to include("Forking sidekiq/sidekiq")
-    expect(stdout.string).to include("Forked → alice/sidekiq")
-  end
-
-  it "prints a 'Reusing existing fork' line when the fork already existed" do
+  it "preserves the reused flag from the adapter" do
     allow(adapter).to receive(:fork).and_return(
       GemContribute::HostAdapter::ForkResult.new(
         clone_url: "x", fork_url: "y", viewer: "alice", reused: true
       )
     )
 
-    operation.call(adapter: adapter, project: project)
-    expect(stdout.string).to include("Reusing existing fork at alice/sidekiq")
+    result = operation.call(adapter: adapter, project: project)
+    expect(result.value!.reused).to be(true)
+  end
+
+  it "returns Failure(:unauthenticated) when the adapter raises AuthRequired" do
+    allow(adapter).to receive(:fork).and_raise(GemContribute::AuthRequired, "github.com")
+
+    result = operation.call(adapter: adapter, project: project)
+    expect(result).to eq(Failure(:unauthenticated))
+  end
+
+  it "returns Failure([:adapter_error, message]) when the adapter raises AdapterError" do
+    allow(adapter).to receive(:fork).and_raise(GemContribute::AdapterError, "rate limit exceeded")
+
+    result = operation.call(adapter: adapter, project: project)
+    expect(result).to eq(Failure([:adapter_error, "rate limit exceeded"]))
   end
 end
