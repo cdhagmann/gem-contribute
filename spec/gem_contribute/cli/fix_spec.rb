@@ -43,7 +43,7 @@ RSpec.describe GemContribute::CLI::Fix do
     )
   end
   let(:clone_data) { GemContribute::Operations::Clone::Result.new(path: target, reused: false) }
-  let(:branch_data) { GemContribute::Operations::Branch::Result.new(name: "gem-contribute/issue-1234") }
+  let(:branch_data) { GemContribute::Operations::Branch::Result.new(name: "gem-contribute/issue-1234", reused: false) }
   let(:pipeline_success) do
     Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: Success(:posted))
   end

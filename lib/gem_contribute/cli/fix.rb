@@ -83,7 +83,7 @@ module GemContribute
 
         case result
         in Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: announce_data)
-          print_summary(clone_data.path, branch_data.name, fork_data)
+          print_summary(clone_data, branch_data, fork_data)
           print_announce_outcome(announce_data, issue)
           @post_clone_hooks.call(clone_data.path, editor: flags[:editor], ai_tool: flags[:ai_tool])
           0
@@ -96,14 +96,19 @@ module GemContribute
         end
       end
 
-      def print_summary(local_path, branch_name, fork_info)
-        @output.info("Forked, cloned, and branched.")
-        @output.info("  path:   #{local_path}")
-        @output.info("  branch: #{branch_name}")
+      def print_summary(clone_data, branch_data, fork_info)
+        status = if branch_data.reused
+                   "Resumed: branch #{branch_data.name} already exists."
+                 else
+                   "Forked, cloned, and branched."
+                 end
+        @output.info(status)
+        @output.info("  path:     #{clone_data.path}")
+        @output.info("  branch:   #{branch_data.name}")
         @output.info("  upstream: #{fork_info.upstream_url}")
         @output.info("  fork:     #{fork_info.fork_url}")
         @output.info("")
-        @output.info("Next: cd #{local_path} && make your changes, then `gem-contribute submit`.")
+        @output.info("Next: cd #{clone_data.path} && make your changes, then `gem-contribute submit`.")
       end
 
       def print_announce_outcome(announce_result, issue)
