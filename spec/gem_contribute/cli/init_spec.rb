@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "tty-prompt"
 
 RSpec.describe GemContribute::CLI::Init do
   let(:stdout) { StringIO.new }
@@ -10,11 +11,15 @@ RSpec.describe GemContribute::CLI::Init do
   let(:store) { GemContribute::TokenStore.new(path: File.join(tmpdir, "auth.json")) }
   let(:auth) { instance_double(GemContribute::CLI::Auth) }
   let(:inputs) { [""] }
+  let(:prompt_input) { StringIO.new("#{inputs.join("\n")}\n") }
+  let(:prompt) do
+    TTY::Prompt.new(input: prompt_input, output: stdout, enable_color: false)
+  end
   let(:cli) do
     described_class.new(
       stdout: stdout, stderr: stderr,
       config: config, store: store, auth: auth,
-      gets: -> { inputs.shift }
+      prompt: prompt
     )
   end
 
@@ -26,7 +31,7 @@ RSpec.describe GemContribute::CLI::Init do
 
     it "writes the default suggestion when the user accepts with Enter" do
       expect(cli.run([])).to eq(0)
-      expect(stdout.string).to include("[~/code/oss]")
+      expect(stdout.string).to include("(~/code/oss)")
       expect(config.clone_root).to eq(File.expand_path("~/code/oss"))
       expect(stdout.string).to include("Clone root set to")
       expect(stdout.string).to include("already authenticated")
@@ -34,7 +39,7 @@ RSpec.describe GemContribute::CLI::Init do
     end
 
     context "with a custom path" do
-      let(:inputs) { ["~/projects/oss\n"] }
+      let(:inputs) { ["~/projects/oss"] }
 
       it "writes the user-supplied path" do
         expect(cli.run([])).to eq(0)
@@ -47,7 +52,7 @@ RSpec.describe GemContribute::CLI::Init do
 
       it "shows the existing value as the default" do
         expect(cli.run([])).to eq(0)
-        expect(stdout.string).to include("[/srv/oss]")
+        expect(stdout.string).to include("(/srv/oss)")
       end
 
       context "when the user accepts the existing value" do
@@ -60,7 +65,7 @@ RSpec.describe GemContribute::CLI::Init do
       end
 
       context "when the user supplies a new value" do
-        let(:inputs) { ["/new/path\n"] }
+        let(:inputs) { ["/new/path"] }
 
         it "overwrites the existing value" do
           expect(cli.run([])).to eq(0)

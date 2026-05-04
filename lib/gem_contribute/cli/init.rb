@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tty-prompt"
+
 module GemContribute
   module CLI
     # `gem-contribute init` — interactive one-time setup. Writes the user's
@@ -8,6 +10,10 @@ module GemContribute
     #
     # Without init, `fix` errors with a hint to run init. The point is to
     # avoid creating directories or assuming auth without explicit consent.
+    #
+    # Prompt input/output goes through `TTY::Prompt` (per ADR-0012 Phase 2,
+    # commit #31). The injected `prompt:` keyword lets tests pass a
+    # `TTY::Prompt.new(input:, output:)` with StringIO streams.
     class Init
       USAGE = <<~USAGE
         Usage: gem-contribute init
@@ -20,17 +26,16 @@ module GemContribute
       DEFAULT_SUGGESTION = "~/code/oss"
       AUTH_HOST = "github.com"
 
-      def initialize(stdout: $stdout, stderr: $stderr,
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
                      config: GemContribute::Config.new,
                      store: GemContribute::TokenStore.new,
                      auth: nil,
-                     gets: -> { $stdin.gets })
-        @stdout = stdout
-        @stderr = stderr
+                     prompt: nil)
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @config = config
         @store = store
-        @auth = auth || GemContribute::CLI::Auth.new(stdout: stdout, stderr: stderr, store: store)
-        @gets = gets
+        @auth = auth || GemContribute::CLI::Auth.new(output: @output, store: store)
+        @prompt = prompt || TTY::Prompt.new
       end
 
       def run(argv)
@@ -46,36 +51,26 @@ module GemContribute
       def prompt_clone_root
         current = @config.to_h["clone_root"]
         default = current || DEFAULT_SUGGESTION
-
-        @stdout.print "Where should I clone repos? [#{default}]: "
-        @stdout.flush
-        input = @gets.call.to_s.chomp.strip
-        chosen = input.empty? ? default : input
-
+        chosen = @prompt.ask("Where should I clone repos?", default: default)
         @config.set("clone_root", chosen)
-        @stdout.puts "Clone root set to #{File.expand_path(chosen)}"
+        @output.info("Clone root set to #{File.expand_path(chosen)}")
       end
 
       def maybe_authenticate
         if @store.token_for(AUTH_HOST)
-          @stdout.puts "GitHub: already authenticated."
+          @output.info("GitHub: already authenticated.")
           return
         end
 
-        @stdout.print "Authenticate with GitHub now? [Y/n]: "
-        @stdout.flush
-        answer = @gets.call.to_s.chomp.strip.downcase
-
-        if %w[n no].include?(answer)
-          @stdout.puts "Skipping auth. Run `gem-contribute auth login` when you're ready."
-          return
+        if @prompt.yes?("Authenticate with GitHub now?", default: true)
+          @auth.run(["login"])
+        else
+          @output.info("Skipping auth. Run `gem-contribute auth login` when you're ready.")
         end
-
-        @auth.run(["login"])
       end
 
       def print_usage
-        @stdout.puts USAGE
+        @output.info(USAGE)
         0
       end
     end

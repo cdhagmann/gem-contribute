@@ -233,6 +233,7 @@ If we're behind: Phase 3 is the load-bearing one for "v1 worth releasing." Phase
 (Confirmed via OPEN_QUESTIONS Q10.)
 
 - Multi-host adapters — v1.x. GitLab tracked at [#8](https://github.com/cdhagmann/gem-contribute/issues/8); Codeberg/sourcehut not yet ticketed.
+- gem.coop-exclusive gems — v1.x. Mirrored gems work today; dedicated-namespace gems need a Resolver fallback to the gem.coop API. Tracked at [#50](https://github.com/cdhagmann/gem-contribute/issues/50).
 - World-map TUI fragment — post-v1, awaits adoption. Tracked indirectly via [#5](https://github.com/cdhagmann/gem-contribute/issues/5)'s acceptance criteria (which also owns the `KICKED_THE_TIRES.yml` data source). [needs dedicated issue when ready to build]
 - Private repos / `repo` OAuth scope — post-v1, no issue
 - PR creation from inside the TUI — design choice, browser-based stays (ADR-0011)
