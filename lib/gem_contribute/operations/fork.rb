@@ -12,7 +12,7 @@ module GemContribute
     class Fork
       include Dry::Monads[:result]
 
-      Result = Data.define(:clone_url, :fork_url, :upstream_url, :viewer, :reused)
+      Result = Data.define(:clone_url, :fork_url, :upstream_url, :viewer, :reused, :owned_upstream)
 
       def call(adapter:, project:)
         fork = adapter.fork(project)
@@ -22,7 +22,8 @@ module GemContribute
             fork_url: fork.fork_url,
             upstream_url: adapter.repo_url(project.owner, project.repo),
             viewer: fork.viewer,
-            reused: fork.reused
+            reused: fork.reused,
+            owned_upstream: fork.owned_upstream
           )
         )
       rescue GemContribute::AuthRequired

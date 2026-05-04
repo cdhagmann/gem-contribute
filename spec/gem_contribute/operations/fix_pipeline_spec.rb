@@ -23,7 +23,7 @@ RSpec.describe GemContribute::Operations::FixPipeline do
       clone_url: "https://github.com/alice/sidekiq.git",
       fork_url: "https://github.com/alice/sidekiq",
       upstream_url: "https://github.com/sidekiq/sidekiq",
-      viewer: "alice", reused: false
+      viewer: "alice", reused: false, owned_upstream: false
     )
   end
   let(:clone_result) do

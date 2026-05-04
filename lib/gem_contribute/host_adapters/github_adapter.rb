@@ -97,6 +97,7 @@ module GemContribute
 
         ensure_known_host!(project)
         viewer = viewer_login
+        return existing_fork_result(viewer, project, owned_upstream: true) if viewer == project.owner
         return existing_fork_result(viewer, project) if fork_exists?(viewer, project.repo)
 
         body = post_json("/repos/#{project.owner}/#{project.repo}/forks")
@@ -173,12 +174,13 @@ module GemContribute
 
       private
 
-      def existing_fork_result(viewer, project)
+      def existing_fork_result(viewer, project, owned_upstream: false)
         ForkResult.new(
           clone_url: clone_url(viewer, project.repo),
           fork_url: repo_url(viewer, project.repo),
           viewer: viewer,
-          reused: true
+          reused: true,
+          owned_upstream: owned_upstream
         )
       end
 
@@ -187,7 +189,8 @@ module GemContribute
           clone_url: body.fetch("clone_url", clone_url(viewer, project.repo)),
           fork_url: body.fetch("html_url", repo_url(viewer, project.repo)),
           viewer: viewer,
-          reused: false
+          reused: false,
+          owned_upstream: false
         )
       end
 
