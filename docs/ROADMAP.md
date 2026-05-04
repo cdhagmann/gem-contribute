@@ -31,10 +31,10 @@ This document is the plan. Decisions still in flight live in [`OPEN_QUESTIONS.md
 - **ADR-0012 service layer (Phase 1).** dry-monads `Result`, dry-operation pipelines, dry-initializer initializers, output-free `Operations::*`. Merged via [PR #48](https://github.com/cdhagmann/gem-contribute/pull/48) on 2026-05-04.
 - **Basic CI.** rubocop + rspec on push/PR landed via [PR #21](https://github.com/cdhagmann/gem-contribute/pull/21) (closes [#7](https://github.com/cdhagmann/gem-contribute/issues/7)). Plugin-install smoke and gated integration tests still pending under [#43](https://github.com/cdhagmann/gem-contribute/issues/43).
 - **PR template + automated check** ([PR #53](https://github.com/cdhagmann/gem-contribute/pull/53)). Tooling, not part of the v1 phases per se.
+- **ADR-0012 Phase 2 (CLI output pipeline).** `Output::Standard`/`Output::Null`, `tty-spinner`-backed `#progress`, `tty-prompt` in Init. Merged via [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51) on 2026-05-04.
 
 ## In flight
 
-- **ADR-0012 Phase 2 (CLI output pipeline)** — `Output::Standard`/`Output::Null`, `tty-spinner`, `tty-prompt`. Open in [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51).
 - **Release infrastructure (Phase 6, partial)** — `release.yml` Trusted Publishing workflow + 0.3.1 cut. Open in [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55).
 
 ## What hasn't started
@@ -93,9 +93,9 @@ Made every operation output-free and Result-returning. This is what lets the eve
 
 ---
 
-## Phase 2 — CLI pipeline (ADR-0012 Phase 2) (in flight)
+## Phase 2 — CLI pipeline (ADR-0012 Phase 2) (DONE)
 
-Open in [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51). Move CLI verbs to a semantic output abstraction so the look-and-feel can evolve independently of the service layer.
+Moved CLI verbs to a semantic output abstraction so the look-and-feel can evolve independently of the service layer. Merged via [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51) on 2026-05-04.
 
 **Steps:**
 
@@ -106,15 +106,15 @@ Open in [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51). Move CLI 
 5. Replace `CLI::Init`'s `stdout.print` + `@gets` with `tty-prompt`.
 
 **Acceptance:**
-- [ ] No raw `puts` to `@stdout`/`@stderr` in `lib/gem_contribute/cli/`
-- [ ] Long operations show a spinner in TTY contexts and a plain line in non-TTY contexts
-- [ ] `Init`'s test suite no longer mocks `gets`
-- [ ] User-visible CLI output unchanged for non-interactive flows; spinners appear in interactive ones
+- [x] No raw `puts` to `@stdout`/`@stderr` in `lib/gem_contribute/cli/`
+- [x] Long operations show a spinner in TTY contexts and a plain line in non-TTY contexts
+- [x] `Init`'s test suite no longer mocks `gets`
+- [x] User-visible CLI output unchanged for non-interactive flows; spinners appear in interactive ones
 
 **Issues:**
-- [ ] [#29](https://github.com/cdhagmann/gem-contribute/issues/29) — `Output::Standard` and `Output::Null`; migrate CLI verbs off raw stdout/stderr
-- [ ] [#30](https://github.com/cdhagmann/gem-contribute/issues/30) — `tty-spinner`-backed `#progress`
-- [ ] [#31](https://github.com/cdhagmann/gem-contribute/issues/31) — `CLI::Init` uses `tty-prompt`
+- [x] [#29](https://github.com/cdhagmann/gem-contribute/issues/29) — `Output::Standard` and `Output::Null`; migrate CLI verbs off raw stdout/stderr
+- [x] [#30](https://github.com/cdhagmann/gem-contribute/issues/30) — `tty-spinner`-backed `#progress`
+- [x] [#31](https://github.com/cdhagmann/gem-contribute/issues/31) — `CLI::Init` uses `tty-prompt`
 
 ---
 
@@ -144,7 +144,7 @@ Everything required to call it 1.0 and not 0.x. Phase number stays at 6 to prese
 ## Sequencing logic for v1.0
 
 - **Phase 0 → 1 → 2 → 6** in strict order. Each unblocks the next.
-- 1.0 ships when Phase 6 is acceptably complete. Realistically: a few small PRs after PR #51 and PR #55 land.
+- 1.0 ships when Phase 6 is acceptably complete. Phases 0, 1, and 2 are done; the remaining work is the polish + release set in Phase 6, with [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55) cutting the first publish (0.3.1) once it merges.
 - v1.x and v2.0 work cannot start until 1.0 is on rubygems with at least a small user base.
 
 ---
@@ -274,7 +274,7 @@ All roadmap work is tracked on the issue tracker. Filter by label:
 |---|---|---|
 | Phase 0 (DONE) | #23, #24 | Two doc sweeps |
 | Phase 1 (DONE) | #25–#28 | Service layer (ADR-0012) |
-| Phase 2 (in flight) | #29–#31 | CLI output pipeline |
+| Phase 2 (DONE) | #29–#31 | CLI output pipeline |
 | Phase 6 (v1.0 polish + release) | #1, #9, #10, #40–#46, #54 | Release infra + papercut polish |
 | v1.x | #3, #8, #38, #39, #47, #49, #50 | Plugins, multi-host, extensions |
 | v2.0 | #2 (umbrella), #13, #32–#37 | Rooibos TUI |
