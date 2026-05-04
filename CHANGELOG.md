@@ -4,6 +4,8 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-04
+
 ### Added
 
 - `gem-contribute fork <gem>` — the look-around-first counterpart to `fix`: fork the gem's repo, clone it, leave you on the default branch with no issue-tied work yet. Same `-e` / `-a` flags. Use this when you want to read the code before deciding whether to commit to a specific issue (closes [#12](https://github.com/cdhagmann/gem-contribute/issues/12)).
