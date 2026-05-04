@@ -64,9 +64,12 @@ jobs:
           if [ ${#missing[@]} -eq 0 ] && [ "$prose_chars" -ge 40 ]; then
             echo "PR body looks good."
             if [ -n "$prior_id" ]; then
+              {
+                echo "$MARKER"
+                echo "✅ PR template check passed. Thanks for filling out the template."
+              } > /tmp/comment.md
               gh api -X PATCH "repos/$REPO/issues/comments/$prior_id" \
-                -f body="$MARKER
-✅ PR template check passed. Thanks for filling out the template."
+                -F body=@/tmp/comment.md
             fi
             exit 0
           fi
