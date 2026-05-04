@@ -4,9 +4,15 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-04
+
 ### Added
 
 - Release workflow (`.github/workflows/release.yml`) — `v*` tag push triggers a publish to rubygems.org via [Trusted Publishing](https://guides.rubygems.org/trusted-publishing/) (OIDC). No `RUBYGEMS_API_KEY` secret involved; rubygems.org issues a short-lived token from the GitHub Actions OIDC claim. The workflow verifies the tag matches `GemContribute::VERSION` and that `CHANGELOG.md` has a dated section for it before running rubocop, rspec, and the publish step. First-time setup (rubygems.org pending-trusted-publisher entry, `release` GitHub Environment) is documented in `MAINTAINER.md` (closes [#44](https://github.com/cdhagmann/gem-contribute/issues/44)).
+
+### Fixed
+
+- `Gemfile.lock` regenerated to match `GemContribute::VERSION` after the 0.3.0 bump (commit `077eadb`) updated `version.rb` without running `bundle install`. CI runs bundler in deployment mode and was failing on the lockfile/gemspec mismatch. The MAINTAINER.md per-release checklist now calls out `bundle install` as an explicit step so the next bump doesn't repeat this.
 
 ## [0.3.0] - 2026-05-04
 
