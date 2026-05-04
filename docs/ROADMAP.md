@@ -136,7 +136,7 @@ Everything required to call it 1.0 and not 0.x. Phase number stays at 6 to prese
 - [ ] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow: rubocop + rspec done; gated integration tests still pending; plugin install smoke deferred to v1.x with plugins
 - [x] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow with **Trusted Publishing (OIDC)** (in [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55), goes live with the 0.3.1 cut)
 - [ ] 🌱 [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/`
-- [ ] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience (CLI-only framing per ADR-0015; "TUI coming in v2.0", "plugins coming in v1.x")
+- [x] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience (CLI-only framing per ADR-0015; "TUI coming in v2.0", "plugins coming in v1.x") — done in [PR #56](https://github.com/cdhagmann/gem-contribute/pull/56)
 - [ ] Tag `v1.0.0`, push to rubygems
 
 ---
