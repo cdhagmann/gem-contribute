@@ -4,9 +4,14 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+### Added
+
+- `preferred_labels` config key — a list of labels `scan` and `issues` query when ranking contributable projects. Default: `["good first issue", "good-first-issue", "help wanted"]`. Set with `gem-contribute config set preferred_labels "label1,label2"`. Each label triggers a separate API request; results are deduped by issue number so a shared label doesn't inflate counts (closes [#1](https://github.com/cdhagmann/gem-contribute/issues/1)).
+
 ### Fixed
 
 - `gem-contribute fix <gem>/<issue>` is now idempotent: re-running the same command switches to the existing `gem-contribute/issue-<N>` branch instead of failing with "branch already exists". The summary line changes to "Resumed: branch … already exists." to make re-runs visually distinct from fresh runs (closes [#54](https://github.com/cdhagmann/gem-contribute/issues/54)).
+- `gem-contribute fix` no longer prints the misleading "You already have a fork" message when you run it against a repo you own. It now prints "You own <owner>/<repo> upstream. Cloning directly; no fork needed." Cloning and branching behavior are unchanged (closes [#10](https://github.com/cdhagmann/gem-contribute/issues/10)).
 
 ### Changed
 

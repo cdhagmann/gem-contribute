@@ -137,7 +137,7 @@ RSpec.describe GemContribute::CLI::Issues do
       allow(adapter).to receive(:issues).and_return([])
 
       expect(cli.run(["all"])).to eq(0)
-      expect(stdout.string).to include("no good first issues found")
+      expect(stdout.string).to include("no contributable issues found")
     end
 
     it "skips gems whose adapter call fails and continues" do
@@ -153,6 +153,45 @@ RSpec.describe GemContribute::CLI::Issues do
       expect(stdout.string).to include("#42")
     end
   end
+
+  # rubocop:disable RSpec/MultipleMemoizedHelpers
+  describe "preferred_labels" do
+    let(:tmpdir) { Dir.mktmpdir("gem-contribute-issues-config-") }
+    let(:config) { GemContribute::Config.new(path: File.join(tmpdir, "config.yml")) }
+    let(:cli_with_config) do
+      described_class.new(stdout: stdout, stderr: stderr,
+                          resolver: resolver, adapter: adapter,
+                          lockfile_path: lockfile, config: config)
+    end
+
+    after { FileUtils.rm_rf(tmpdir) }
+
+    it "dedupes issues returned for multiple labels by issue number" do
+      shared_issue = issue(1234, "Shared issue")
+      allow(adapter).to receive(:issues).with(project, labels: ["good first issue"])
+                                        .and_return([shared_issue])
+      allow(adapter).to receive(:issues).with(project, labels: ["good-first-issue"])
+                                        .and_return([shared_issue, issue(5678, "Other issue")])
+      allow(adapter).to receive(:issues).with(project, labels: ["help wanted"])
+                                        .and_return([])
+
+      expect(cli_with_config.run(["rubocop"])).to eq(0)
+      expect(stdout.string).to include("#1234")
+      expect(stdout.string).to include("#5678")
+      expect(stdout.string).to match(/2 open/)
+    end
+
+    it "uses custom preferred_labels from config instead of defaults" do
+      config.set("preferred_labels", "help wanted")
+      allow(adapter).to receive(:issues).with(project, labels: ["help wanted"])
+                                        .and_return([issue(99, "Help wanted issue")])
+
+      expect(cli_with_config.run(["rubocop"])).to eq(0)
+      expect(stdout.string).to include("#99")
+      expect(adapter).not_to have_received(:issues).with(project, labels: ["good first issue"])
+    end
+  end
+  # rubocop:enable RSpec/MultipleMemoizedHelpers
 
   describe "rate-limit footer" do
     it "appends the footer after `issues <gem>` when adapter recorded one" do

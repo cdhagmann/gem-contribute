@@ -147,4 +147,37 @@ RSpec.describe GemContribute::CLI::Scan do
     expect(scan.run([lockfile])).to eq(0)
     expect(stdout.string).not_to include("GitHub rate limit")
   end
+
+  describe "preferred_labels" do
+    let(:tmpdir) { Dir.mktmpdir("gem-contribute-scan-config-") }
+    let(:config) { GemContribute::Config.new(path: File.join(tmpdir, "config.yml")) }
+    let(:scan_with_config) do
+      described_class.new(stdout: stdout, stderr: stderr,
+                          resolver: resolver, adapter: adapter, config: config)
+    end
+
+    after { FileUtils.rm_rf(tmpdir) }
+
+    it "dedupes issues by number across preferred labels so a shared issue is counted once" do
+      allow(resolver).to receive(:resolve).and_return(project("rake", owner: "ruby", repo: "rake"))
+      shared = { "number" => 1 }
+      allow(adapter).to receive(:issues).with(anything, labels: ["good first issue"]).and_return([shared])
+      allow(adapter).to receive(:issues).with(anything, labels: ["good-first-issue"]).and_return([shared])
+      allow(adapter).to receive(:issues).with(anything, labels: ["help wanted"]).and_return([])
+
+      expect(scan_with_config.run([lockfile])).to eq(0)
+      expect(stdout.string).to match(/rake\s+1\s+/)
+    end
+
+    it "uses custom preferred_labels from config" do
+      config.set("preferred_labels", "help wanted")
+      allow(resolver).to receive(:resolve).and_return(project("rake", owner: "ruby", repo: "rake"))
+      allow(adapter).to receive(:issues).with(anything, labels: ["help wanted"])
+                                        .and_return([{ "number" => 42 }])
+
+      expect(scan_with_config.run([lockfile])).to eq(0)
+      expect(stdout.string).to match(/rake\s+1\s+/)
+      expect(adapter).not_to have_received(:issues).with(anything, labels: ["good first issue"])
+    end
+  end
 end

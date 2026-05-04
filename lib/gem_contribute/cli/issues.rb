@@ -12,16 +12,16 @@ module GemContribute
     class Issues
       include Workflow
 
-      DEFAULT_LABEL = "good first issue"
-
       def initialize(stdout: $stdout, stderr: $stderr, output: nil,
                      resolver: Resolver.new,
                      adapter: HostAdapters::GitHubAdapter.new,
-                     lockfile_path: "Gemfile.lock")
+                     lockfile_path: "Gemfile.lock",
+                     config: GemContribute::Config.new)
         @output = output || Output::Standard.new(out: stdout, err: stderr)
         @resolver = resolver
         @adapter = adapter
         @lockfile_path = lockfile_path
+        @config = config
       end
 
       def run(argv)
@@ -69,22 +69,35 @@ module GemContribute
           print_project_issues(project, issues)
         end
 
-        @output.info("(no good first issues found across #{projects.size} gems)") unless any
+        @output.info("(no contributable issues found across #{projects.size} gems)") unless any
         0
       rescue LockfileNotFound => e
         @output.error("gem-contribute: #{e.message}")
         1
       end
 
+      def issues_for_project(project)
+        errors = []
+        issues = @config.preferred_labels.flat_map do |label|
+          @adapter.issues(project, labels: [label])
+        rescue AdapterError => e
+          errors << e
+          []
+        end
+        raise errors.first if issues.empty? && errors.any?
+
+        issues.uniq { |i| i["number"] }
+      end
+
       def fetch_issues(project)
-        @adapter.issues(project, labels: [DEFAULT_LABEL])
+        issues_for_project(project)
       rescue AdapterError => e
         @output.warn("  warning: #{project.gem_name}: #{e.message}")
         []
       end
 
       def list_issues(project)
-        issues = @adapter.issues(project, labels: [DEFAULT_LABEL])
+        issues = issues_for_project(project)
         print_project_issues(project, issues)
         @output.info("To contribute: gem-contribute fix #{project.gem_name}/<issue#>")
         0
@@ -92,7 +105,7 @@ module GemContribute
 
       def print_project_issues(project, issues)
         repo_url = "https://github.com/#{project.owner}/#{project.repo}"
-        @output.info("#{project.gem_name} — #{issues.size} open \"#{DEFAULT_LABEL}\" issues (#{repo_url})")
+        @output.info("#{project.gem_name} — #{issues.size} open contributable issues (#{repo_url})")
 
         if issues.empty?
           @output.info("  (none — browse #{repo_url}/issues directly)")
