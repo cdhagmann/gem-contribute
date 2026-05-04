@@ -18,8 +18,7 @@ defaults:
 # Don't try to publish working notes that aren't intended as docs.
 exclude:
   - claude-code-prompt.md
-  - prep-plan.md
-  - workshop-issues/
+  - archive/
 
 # Make markdown links to other .md files Just Work in the rendered HTML.
 relative_links:
