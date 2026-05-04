@@ -213,7 +213,7 @@ Everything required to call it 1.0 and not 0.x.
 - [ ] [#42](https://github.com/cdhagmann/gem-contribute/issues/42) — Add MAINTAINER.md (release process, OAuth App, plugin verification)
 - [ ] OAuth App: stay on personal-account App for v1.0 (per Q13); migrate when rate limits bite
 - [ ] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow (`.github/workflows/ci.yml`): rubocop + rspec; gated integration tests; plugin install smoke (basic rubocop + rspec already landed via [PR #21](https://github.com/cdhagmann/gem-contribute/pull/21) / [#7](https://github.com/cdhagmann/gem-contribute/issues/7); gated integration tests and plugin smoke still pending)
-- [ ] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow (`.github/workflows/release.yml`) with **Trusted Publishing (OIDC)**
+- [x] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow (`.github/workflows/release.yml`) with **Trusted Publishing (OIDC)** (will go live with the 0.4 release)
 - [ ] 🌱 [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/`
 - [ ] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience
 - [ ] Verify `bundle plugin install` and `gem install` from a clean machine (covered by CI smoke test in #43)

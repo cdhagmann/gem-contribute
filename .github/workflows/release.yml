@@ -1,0 +1,71 @@
+name: Release
+
+# Triggers on `v*` tag pushes (e.g. `v0.4.0`). Verifies the tag matches
+# `GemContribute::VERSION` and that CHANGELOG.md has a dated section for
+# it, then runs rubocop + rspec as a final gate and publishes to
+# rubygems.org via Trusted Publishing (OIDC). No `RUBYGEMS_API_KEY`
+# secret — the rubygems.org-side trusted-publisher entry mints a
+# short-lived token from the GitHub Actions OIDC claim. Compatible with
+# `rubygems_mfa_required = true`, which the gemspec already sets.
+#
+# First-run setup (one-time, before the first tag push): see
+# MAINTAINER.md → "Cutting a release". The rubygems.org Trusted
+# Publisher entry must exist before this workflow can succeed.
+#
+# The `release` environment scopes the OIDC claim — only workflow runs
+# in that environment can authenticate to rubygems.org. Configure it at
+# Settings → Environments in the GitHub repo (no secrets, no protection
+# rules required, but adding a "required reviewer" gives a manual
+# approval gate before publishes).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # create the GitHub release with auto-generated notes
+  id-token: write   # request OIDC token for Trusted Publishing
+
+jobs:
+  release:
+    name: Build, test, and publish
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Verify tag matches gemspec version and CHANGELOG section
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag_version="${REF_NAME#v}"
+          gem_version=$(ruby -r./lib/gem_contribute/version -e 'print GemContribute::VERSION')
+
+          if [ "$tag_version" != "$gem_version" ]; then
+            echo "::error::Tag $REF_NAME does not match GemContribute::VERSION ($gem_version)."
+            echo "Bump lib/gem_contribute/version.rb or retag, then push."
+            exit 1
+          fi
+
+          if ! grep -Fq "## [$gem_version]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md is missing a '## [$gem_version]' section."
+            echo "Add a dated section before tagging — see existing entries for the shape."
+            exit 1
+          fi
+
+      - name: rubocop
+        run: bin/rubocop
+
+      - name: rspec
+        run: bin/rspec
+
+      - name: Publish to rubygems.org via Trusted Publishing
+        uses: rubygems/release-gem@v1
