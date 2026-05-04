@@ -14,12 +14,11 @@ module GemContribute
 
       DEFAULT_LABEL = "good first issue"
 
-      def initialize(stdout: $stdout, stderr: $stderr,
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
                      resolver: Resolver.new,
                      adapter: HostAdapters::GitHubAdapter.new,
                      lockfile_path: "Gemfile.lock")
-        @stdout = stdout
-        @stderr = stderr
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @resolver = resolver
         @adapter = adapter
         @lockfile_path = lockfile_path
@@ -31,17 +30,17 @@ module GemContribute
 
         @claim_index = IssueAnnouncer.fetch_claim_index(@adapter)
         status = target == "all" ? run_all : run_single(target)
-        RateLimitFooter.print(adapter: @adapter, stdout: @stdout)
+        RateLimitFooter.print(adapter: @adapter, output: @output)
         status
       rescue AdapterError => e
-        @stderr.puts "gem-contribute: #{e.message}"
+        @output.error("gem-contribute: #{e.message}")
         1
       end
 
       private
 
       def print_usage
-        @stderr.puts "Usage: gem-contribute issues <gem|all>"
+        @output.error("Usage: gem-contribute issues <gem|all>")
         2
       end
 
@@ -59,7 +58,7 @@ module GemContribute
           project if project.host == "github.com"
         end
 
-        @stdout.puts "Scanning #{projects.size} github.com gems from #{@lockfile_path}...\n\n"
+        @output.info("Scanning #{projects.size} github.com gems from #{@lockfile_path}...\n")
 
         any = false
         projects.each do |project|
@@ -70,35 +69,35 @@ module GemContribute
           print_project_issues(project, issues)
         end
 
-        @stdout.puts "(no good first issues found across #{projects.size} gems)" unless any
+        @output.info("(no good first issues found across #{projects.size} gems)") unless any
         0
       rescue LockfileNotFound => e
-        @stderr.puts "gem-contribute: #{e.message}"
+        @output.error("gem-contribute: #{e.message}")
         1
       end
 
       def fetch_issues(project)
         @adapter.issues(project, labels: [DEFAULT_LABEL])
       rescue AdapterError => e
-        @stderr.puts "  warning: #{project.gem_name}: #{e.message}"
+        @output.warn("  warning: #{project.gem_name}: #{e.message}")
         []
       end
 
       def list_issues(project)
         issues = @adapter.issues(project, labels: [DEFAULT_LABEL])
         print_project_issues(project, issues)
-        @stdout.puts "To contribute: gem-contribute fix #{project.gem_name}/<issue#>"
+        @output.info("To contribute: gem-contribute fix #{project.gem_name}/<issue#>")
         0
       end
 
       def print_project_issues(project, issues)
         repo_url = "https://github.com/#{project.owner}/#{project.repo}"
-        @stdout.puts "#{project.gem_name} — #{issues.size} open \"#{DEFAULT_LABEL}\" issues (#{repo_url})"
+        @output.info("#{project.gem_name} — #{issues.size} open \"#{DEFAULT_LABEL}\" issues (#{repo_url})")
 
         if issues.empty?
-          @stdout.puts "  (none — browse #{repo_url}/issues directly)"
+          @output.info("  (none — browse #{repo_url}/issues directly)")
         else
-          @stdout.puts
+          @output.info("")
           print_issue_list(project, issues)
         end
       end
@@ -107,9 +106,9 @@ module GemContribute
         claimed = @claim_index["#{project.owner}/#{project.repo}"] || []
         issues.each do |issue|
           label = claimed.include?(issue["number"]) ? "[claimed] " : ""
-          @stdout.puts "  ##{issue["number"]}  #{label}#{issue["title"]}"
-          @stdout.puts "        #{issue["html_url"]}"
-          @stdout.puts
+          @output.info("  ##{issue["number"]}  #{label}#{issue["title"]}")
+          @output.info("        #{issue["html_url"]}")
+          @output.info("")
         end
       end
     end

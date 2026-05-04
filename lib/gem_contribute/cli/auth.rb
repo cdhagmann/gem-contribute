@@ -23,11 +23,11 @@ module GemContribute
 
       DEFAULT_HOST = "github.com"
 
-      def initialize(stdout: $stdout, stderr: $stderr, store: TokenStore.new,
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
+                     store: TokenStore.new,
                      sleeper: ->(s) { Kernel.sleep(s) },
                      browser_opener: nil, clipper: nil)
-        @stdout = stdout
-        @stderr = stderr
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @store = store
         @sleeper = sleeper
         @browser_opener = browser_opener || method(:default_browser_opener)
@@ -40,11 +40,11 @@ module GemContribute
         when "status" then status
         when "logout" then logout
         when nil, "help", "-h", "--help"
-          @stdout.puts USAGE
+          @output.info(USAGE)
           0
         else
-          @stderr.puts "gem-contribute: unknown auth subcommand"
-          @stderr.puts USAGE
+          @output.error("gem-contribute: unknown auth subcommand")
+          @output.error(USAGE)
           2
         end
       end
@@ -57,20 +57,20 @@ module GemContribute
         result = poll_loop(device_code)
         persist_or_report(result)
       rescue GemContribute::Auth::AuthError => e
-        @stderr.puts "auth login failed: #{e.message}"
+        @output.error("auth login failed: #{e.message}")
         1
       end
 
       def prompt_user(device_code)
         copied = @clipper.call(device_code.user_code)
         code_suffix = copied ? " (copied to clipboard)" : ""
-        @stdout.puts "Your one-time code#{code_suffix}: #{device_code.user_code}"
+        @output.info("Your one-time code#{code_suffix}: #{device_code.user_code}")
 
         opened = @browser_opener.call(device_code.verification_uri)
         url_prefix = opened ? "Browser opened to" : "Visit"
-        @stdout.puts "#{url_prefix}: #{device_code.verification_uri}"
+        @output.info("#{url_prefix}: #{device_code.verification_uri}")
 
-        @stdout.puts "Waiting for you to authorize..."
+        @output.progress("Waiting for you to authorize...")
       end
 
       def poll_loop(device_code)
@@ -94,16 +94,16 @@ module GemContribute
         case result.status
         when :ok
           @store.store(DEFAULT_HOST, access_token: result.token, scope: result.scope)
-          @stdout.puts "Authenticated. Token saved to #{TokenStore.default_path} (mode 0600)."
+          @output.info("Authenticated. Token saved to #{TokenStore.default_path} (mode 0600).")
           0
         when :expired
-          @stderr.puts "Device code expired. Run `gem-contribute auth login` again."
+          @output.error("Device code expired. Run `gem-contribute auth login` again.")
           1
         when :denied
-          @stderr.puts "Authorization denied."
+          @output.error("Authorization denied.")
           1
         else
-          @stderr.puts "auth login failed: #{result.error_message}"
+          @output.error("auth login failed: #{result.error_message}")
           1
         end
       end
@@ -111,7 +111,7 @@ module GemContribute
       def status
         entry = @store.entry_for(DEFAULT_HOST)
         if entry.nil?
-          @stdout.puts "Not authenticated. Run `gem-contribute auth login`."
+          @output.info("Not authenticated. Run `gem-contribute auth login`.")
           return 1
         end
 
@@ -121,19 +121,19 @@ module GemContribute
       def verify_and_print(entry)
         adapter = HostAdapters::GitHubAdapter.new(token: entry["access_token"])
         login_name = adapter.viewer_login
-        @stdout.puts "Authenticated as @#{login_name} on #{DEFAULT_HOST} (scope: #{entry["scope"] || "unknown"})"
+        @output.info("Authenticated as @#{login_name} on #{DEFAULT_HOST} (scope: #{entry["scope"] || "unknown"})")
         0
       rescue GemContribute::AuthRequired, GemContribute::AdapterError => e
-        @stderr.puts "Token cached for #{DEFAULT_HOST} but verification failed: #{e.message}"
-        @stderr.puts "Run `gem-contribute auth login` to refresh."
+        @output.error("Token cached for #{DEFAULT_HOST} but verification failed: #{e.message}")
+        @output.error("Run `gem-contribute auth login` to refresh.")
         1
       end
 
       def logout
         if @store.delete(DEFAULT_HOST)
-          @stdout.puts "Logged out of #{DEFAULT_HOST}."
+          @output.info("Logged out of #{DEFAULT_HOST}.")
         else
-          @stdout.puts "No cached token for #{DEFAULT_HOST}."
+          @output.info("No cached token for #{DEFAULT_HOST}.")
         end
         0
       end

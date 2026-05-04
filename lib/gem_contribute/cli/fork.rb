@@ -20,13 +20,14 @@ module GemContribute
 
       option :stdout, default: -> { $stdout }
       option :stderr, default: -> { $stderr }
+      option :output, default: -> { Output::Standard.new(out: stdout, err: stderr) }
       option :resolver, default: -> { Resolver.new }
       option :store, default: -> { TokenStore.new }
       option :adapter_factory,
              default: -> { ->(token:) { HostAdapters::GitHubAdapter.new(token: token) } }
       option :git, default: -> { GemContribute::Git.new }
       option :clone_root, default: -> { DEFAULT_CLONE_ROOT }
-      option :post_clone_hooks, default: -> { PostCloneHooks.new(stdout: stdout, stderr: stderr) }
+      option :post_clone_hooks, default: -> { PostCloneHooks.new(output: output) }
       option :fork_op, default: -> { Operations::Fork.new }
       option :clone_op, default: -> { Operations::Clone.new(git: git) }
 
@@ -43,7 +44,7 @@ module GemContribute
 
           execute(adapter, project, flags)
         in Failure(:unauthenticated)
-          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          @output.error("Not authenticated. Run `gem-contribute auth login` first.")
           1
         end
       end
@@ -53,19 +54,19 @@ module GemContribute
       # on the happy path; `Failure(reason)` propagated from Operations
       # otherwise.
       def bootstrap(adapter, project)
-        @stdout.puts "Forking #{project.owner}/#{project.repo}..."
+        @output.progress("Forking #{project.owner}/#{project.repo}...")
         fork_result = @fork_op.call(adapter: adapter, project: project)
         return fork_result if fork_result.failure?
 
         fork_info = fork_result.value!
-        @stdout.puts fork_status_line(fork_info, project)
+        @output.info(fork_status_line(fork_info, project))
 
         clone_result = @clone_op.call(adapter: adapter, project: project,
                                       fork_clone_url: fork_info.clone_url, root: @clone_root)
         return clone_result if clone_result.failure?
 
         clone_info = clone_result.value!
-        @stdout.puts clone_status_line(clone_info)
+        @output.info(clone_status_line(clone_info))
 
         Success([clone_info.path, fork_info])
       end
@@ -86,7 +87,7 @@ module GemContribute
       end
 
       def print_usage_error
-        @stderr.puts "Usage: gem-contribute fork <gem|owner/repo> [-e] [-a]"
+        @output.error("Usage: gem-contribute fork <gem|owner/repo> [-e] [-a]")
         2
       end
 
@@ -97,10 +98,10 @@ module GemContribute
           @post_clone_hooks.call(local_path, editor: flags[:editor], ai_tool: flags[:ai_tool])
           0
         in Failure(:unauthenticated)
-          @stderr.puts "Not authenticated. Run `gem-contribute auth login` first."
+          @output.error("Not authenticated. Run `gem-contribute auth login` first.")
           1
         in Failure(:adapter_error, message)
-          @stderr.puts "fork failed: #{message}"
+          @output.error("fork failed: #{message}")
           1
         end
       end
@@ -122,14 +123,14 @@ module GemContribute
       end
 
       def print_summary(local_path, project, fork_info)
-        @stdout.puts "Forked and cloned. You're on the default branch."
-        @stdout.puts "  path:     #{local_path}"
-        @stdout.puts "  upstream: #{fork_info.upstream_url}"
-        @stdout.puts "  fork:     #{fork_info.fork_url}"
-        @stdout.puts
-        @stdout.puts "Next: cd #{local_path} && explore. When you pick an issue, " \
+        @output.info("Forked and cloned. You're on the default branch.")
+        @output.info("  path:     #{local_path}")
+        @output.info("  upstream: #{fork_info.upstream_url}")
+        @output.info("  fork:     #{fork_info.fork_url}")
+        @output.info("")
+        @output.info("Next: cd #{local_path} && explore. When you pick an issue, " \
                      "`gem-contribute fix #{project.gem_name}/<issue#>` " \
-                     "branches off the default."
+                     "branches off the default.")
       end
     end
   end

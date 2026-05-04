@@ -22,14 +22,13 @@ module GemContribute
 
       BRANCH_REGEX = %r{\Agem-contribute/issue-(\d+)\z}
 
-      def initialize(stdout: $stdout, stderr: $stderr,
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
                      git: GemContribute::Git.new,
                      adapter_factory: ->(token:) { HostAdapters::GitHubAdapter.new(token: token) },
                      store: TokenStore.new,
                      browser_opener: nil,
                      working_dir: Dir.pwd)
-        @stdout = stdout
-        @stderr = stderr
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @git = git
         @adapter_factory = adapter_factory
         @store = store
@@ -51,7 +50,7 @@ module GemContribute
         upstream = parse_remote("upstream", required: false) || origin
         execute(branch, issue_number, origin, upstream)
       rescue AdapterError => e
-        @stderr.puts "submit failed: #{e.message}"
+        @output.error("submit failed: #{e.message}")
         1
       end
 
@@ -86,8 +85,8 @@ module GemContribute
         match = BRANCH_REGEX.match(branch)
         return match[1].to_i if match
 
-        @stderr.puts "submit: branch #{branch.inspect} doesn't match #{BRANCH_REGEX.source}."
-        @stderr.puts "Run `gem-contribute fix <gem>/<issue#>` first to set up the branch."
+        @output.error("submit: branch #{branch.inspect} doesn't match #{BRANCH_REGEX.source}.")
+        @output.error("Run `gem-contribute fix <gem>/<issue#>` first to set up the branch.")
         nil
       end
 
@@ -100,7 +99,7 @@ module GemContribute
       end
 
       def missing_remote_error(name)
-        @stderr.puts "submit: no `#{name}` remote configured. Are you inside a git clone?"
+        @output.error("submit: no `#{name}` remote configured. Are you inside a git clone?")
         nil
       end
 
@@ -109,7 +108,7 @@ module GemContribute
         if (m = url.match(%r{github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?\z}))
           { owner: m[1], repo: m[2] }
         else
-          @stderr.puts "submit: can't parse GitHub owner/repo from #{url.inspect}"
+          @output.error("submit: can't parse GitHub owner/repo from #{url.inspect}")
           nil
         end
       end
@@ -124,7 +123,7 @@ module GemContribute
       def fetch_issue_title(adapter, upstream_project, number)
         adapter.issue(upstream_project, number).fetch("title", nil)
       rescue AdapterError => e
-        @stderr.puts "submit: couldn't fetch issue title (#{e.message}). Continuing without it."
+        @output.warn("submit: couldn't fetch issue title (#{e.message}). Continuing without it.")
         nil
       end
 
@@ -137,14 +136,14 @@ module GemContribute
       end
 
       def push_branch(branch)
-        @stdout.puts "Pushing #{branch} to origin..."
+        @output.progress("Pushing #{branch} to origin...")
         @git.push(@working_dir, "origin", branch)
       end
 
       def open_and_print(url)
         opened = @browser_opener.call(url)
-        @stdout.puts opened ? "Opened browser to:" : "Open this URL to file the PR:"
-        @stdout.puts "  #{url}"
+        @output.info(opened ? "Opened browser to:" : "Open this URL to file the PR:")
+        @output.info("  #{url}")
       end
     end
   end

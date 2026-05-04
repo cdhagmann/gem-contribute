@@ -21,9 +21,10 @@ module GemContribute
       # filtering. Future stages can call once per label and dedupe.
       DEFAULT_LABEL = "good first issue"
 
-      def initialize(stdout: $stdout, stderr: $stderr, resolver: Resolver.new, adapter: HostAdapters::GitHubAdapter.new)
-        @stdout = stdout
-        @stderr = stderr
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
+                     resolver: Resolver.new,
+                     adapter: HostAdapters::GitHubAdapter.new)
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @resolver = resolver
         @adapter = adapter
       end
@@ -33,21 +34,21 @@ module GemContribute
       def run(argv)
         path = argv.first || "Gemfile.lock"
         gems = LockfileParser.parse(path)
-        @stdout.puts "Scanning #{path} (#{gems.size} gems)..."
+        @output.progress("Scanning #{path} (#{gems.size} gems)...")
 
         projects = gems.map { |gem| @resolver.resolve(gem) }
         # Summary tally reflects only the lockfile contents — the
         # self-injection is intentionally additive, not part of the count.
         print_summary(tally_hosts(projects), gems.size)
         scan_github_projects(projects)
-        RateLimitFooter.print(adapter: @adapter, stdout: @stdout)
+        RateLimitFooter.print(adapter: @adapter, output: @output)
         0
       rescue LockfileNotFound => e
-        @stderr.puts "gem-contribute: #{e.message}"
+        @output.error("gem-contribute: #{e.message}")
         1
       rescue Errno::ECONNREFUSED, SocketError => e
-        @stderr.puts "gem-contribute: network unreachable (#{e.class}: #{e.message})"
-        @stderr.puts "Re-run when you have connectivity, or use cached data with --refresh disabled."
+        @output.error("gem-contribute: network unreachable (#{e.class}: #{e.message})")
+        @output.error("Re-run when you have connectivity, or use cached data with --refresh disabled.")
         1
       end
 
@@ -61,7 +62,7 @@ module GemContribute
 
       def scan_github_projects(projects)
         github_from_lockfile = projects.select { |p| p.host == "github.com" }
-        @stdout.puts "\nNo github.com projects in this lockfile." if github_from_lockfile.empty?
+        @output.info("\nNo github.com projects in this lockfile.") if github_from_lockfile.empty?
 
         ranked = rank_by_issue_count(inject_self(github_from_lockfile))
         return if ranked.empty?
@@ -82,7 +83,7 @@ module GemContribute
           label = host == :unknown ? "unknown source" : "on #{host}"
           parts << "#{count} #{label}"
         end
-        @stdout.puts parts.join(" · ")
+        @output.info(parts.join(" · "))
       end
 
       def rank_by_issue_count(projects)
@@ -101,19 +102,19 @@ module GemContribute
         issues = @adapter.issues(project, labels: [DEFAULT_LABEL])
         issues.size
       rescue AdapterError, AuthRequired => e
-        @stderr.puts "  warning: #{project.gem_name} (#{project.host}/#{project.owner}/#{project.repo}): #{e.message}"
+        @output.warn("  warning: #{project.gem_name} (#{project.host}/#{project.owner}/#{project.repo}): #{e.message}")
         0
       end
 
       def print_ranked(ranked, claim_index)
-        @stdout.puts
-        @stdout.puts "Top contributable projects (by open `good first issue` count):"
+        @output.info("")
+        @output.info("Top contributable projects (by open `good first issue` count):")
         col_name = ranked.map { |p, _| p.gem_name.length }.max
         ranked.each do |project, count|
           location = "#{project.host}/#{project.owner}/#{project.repo}"
           claimed = claim_index["#{project.owner}/#{project.repo}"] || []
           suffix = claimed.empty? ? "" : "  · #{claimed.size} claimed"
-          @stdout.printf("  %-#{col_name}s  %3d  %s%s\n", project.gem_name, count, location, suffix)
+          @output.info(format("  %-#{col_name}s  %3d  %s%s", project.gem_name, count, location, suffix))
         end
       end
     end

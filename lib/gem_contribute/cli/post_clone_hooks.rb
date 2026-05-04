@@ -9,12 +9,11 @@ module GemContribute
     # `fix` state machine stays focused on the fork/clone/branch
     # sequence.
     class PostCloneHooks
-      def initialize(stdout: $stdout, stderr: $stderr,
+      def initialize(stdout: $stdout, stderr: $stderr, output: nil,
                      config: GemContribute::Config.new,
                      editor_runner: ->(cmd, path) { Kernel.system("#{cmd} #{path.shellescape}") },
                      ai_runner: ->(cmd, path) { Kernel.system(cmd, chdir: path) })
-        @stdout = stdout
-        @stderr = stderr
+        @output = output || Output::Standard.new(out: stdout, err: stderr)
         @config = config
         @editor_runner = editor_runner
         @ai_runner = ai_runner
@@ -30,8 +29,8 @@ module GemContribute
       def open_editor(local_path)
         editor = @config.editor || ENV.fetch("EDITOR", nil)
         if editor.nil? || editor.empty?
-          @stderr.puts "-e: no editor configured. " \
-                       "Set with `gem-contribute config set editor <cmd>` or set $EDITOR."
+          @output.warn("-e: no editor configured. " \
+                       "Set with `gem-contribute config set editor <cmd>` or set $EDITOR.")
           return
         end
         @editor_runner.call(editor, local_path)
@@ -40,8 +39,8 @@ module GemContribute
       def launch_ai(local_path)
         ai_tool = @config.ai_tool
         if ai_tool.nil? || ai_tool.empty?
-          @stderr.puts "-a: no ai_tool configured. " \
-                       "Set with `gem-contribute config set ai_tool \"<cmd>\"`."
+          @output.warn("-a: no ai_tool configured. " \
+                       "Set with `gem-contribute config set ai_tool \"<cmd>\"`.")
           return
         end
         @ai_runner.call(ai_tool, local_path)
