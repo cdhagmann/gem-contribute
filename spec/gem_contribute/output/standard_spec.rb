@@ -13,9 +13,46 @@ RSpec.describe GemContribute::Output::Standard do
     expect(err.string).to eq("")
   end
 
-  it "writes #progress to stdout (currently a plain line; spinner lands in #30)" do
-    output.progress("doing the thing...")
-    expect(out.string).to eq("doing the thing...\n")
+  describe "#progress" do
+    it "without a block falls back to plain #info-style puts" do
+      output.progress("doing the thing...")
+      expect(out.string).to eq("doing the thing...\n")
+    end
+
+    it "in non-TTY context (StringIO) puts the message and yields the block" do
+      result = output.progress("doing the thing...") { 42 }
+      expect(out.string).to eq("doing the thing...\n")
+      expect(result).to eq(42)
+    end
+
+    it "in TTY context runs tty-spinner during the block and returns the block's value" do
+      tty = instance_double(IO, tty?: true)
+      allow(tty).to receive(:puts)
+      tty_output = described_class.new(out: tty, err: err)
+      spinner = instance_double(TTY::Spinner)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner)
+      allow(spinner).to receive(:auto_spin)
+      allow(spinner).to receive(:stop)
+
+      result = tty_output.progress("forking...") { :work_done }
+
+      expect(result).to eq(:work_done)
+      expect(spinner).to have_received(:auto_spin)
+      expect(spinner).to have_received(:stop)
+    end
+
+    it "stops the spinner even if the block raises" do
+      tty = instance_double(IO, tty?: true)
+      allow(tty).to receive(:puts)
+      tty_output = described_class.new(out: tty, err: err)
+      spinner = instance_double(TTY::Spinner)
+      allow(TTY::Spinner).to receive(:new).and_return(spinner)
+      allow(spinner).to receive(:auto_spin)
+      allow(spinner).to receive(:stop)
+
+      expect { tty_output.progress("forking...") { raise "boom" } }.to raise_error("boom")
+      expect(spinner).to have_received(:stop)
+    end
   end
 
   it "writes #warn to stderr without prefixing" do

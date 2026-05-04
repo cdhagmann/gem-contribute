@@ -136,8 +136,9 @@ module GemContribute
       end
 
       def push_branch(branch)
-        @output.progress("Pushing #{branch} to origin...")
-        @git.push(@working_dir, "origin", branch)
+        @output.progress("Pushing #{branch} to origin...") do
+          @git.push(@working_dir, "origin", branch)
+        end
       end
 
       def open_and_print(url)

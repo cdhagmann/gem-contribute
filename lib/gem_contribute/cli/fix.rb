@@ -76,10 +76,12 @@ module GemContribute
         allow_announce = !flags[:no_comment] &&
                          @config.comment_on_fix?("#{project.owner}/#{project.repo}")
 
-        @output.progress("Forking #{project.owner}/#{project.repo}...")
+        result = @output.progress("Forking #{project.owner}/#{project.repo}...") do
+          @pipeline.call(adapter: adapter, project: project, issue: issue,
+                         root: @clone_root, allow_announce: allow_announce)
+        end
 
-        case @pipeline.call(adapter: adapter, project: project, issue: issue,
-                            root: @clone_root, allow_announce: allow_announce)
+        case result
         in Success(fork: fork_data, clone: clone_data, branch: branch_data, announce: announce_data)
           print_summary(clone_data.path, branch_data.name, fork_data)
           print_announce_outcome(announce_data, issue)
