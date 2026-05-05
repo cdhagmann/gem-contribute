@@ -8,7 +8,8 @@ module GemContribute
   # Honors XDG_CONFIG_HOME so tests stay hermetic and unusual layouts work.
   # Missing or corrupt files are treated as an empty config (no crash).
   class Config
-    KNOWN_KEYS = %w[clone_root editor ai_tool comment_on_fix].freeze
+    KNOWN_KEYS = %w[clone_root editor ai_tool comment_on_fix preferred_labels].freeze
+    DEFAULT_PREFERRED_LABELS = ["good first issue", "good-first-issue", "help wanted"].freeze
 
     def initialize(path: self.class.default_path)
       @path = path
@@ -31,6 +32,11 @@ module GemContribute
     # Returns whether `fix` should post a "working on this" comment.
     # Pass a repo (`"owner/repo"`) to check the per-repo override; without
     # a repo, returns the global default. Default is true when unset.
+    def preferred_labels
+      raw = @data["preferred_labels"]
+      raw.nil? ? DEFAULT_PREFERRED_LABELS : Array(raw)
+    end
+
     def comment_on_fix?(repo = nil)
       overrides = @data["comment_on_fix_overrides"]
       return truthy?(overrides[repo]) if repo && overrides.is_a?(Hash) && overrides.key?(repo)
@@ -43,7 +49,7 @@ module GemContribute
       raise ArgumentError, "unknown config key #{key.inspect}. Known keys: #{KNOWN_KEYS.join(", ")}" \
         unless KNOWN_KEYS.include?(key)
 
-      @data[key] = value
+      @data[key] = key == "preferred_labels" ? coerce_label_list(value) : value
       write_file
     end
 
@@ -57,6 +63,12 @@ module GemContribute
     end
 
     private
+
+    def coerce_label_list(value)
+      return value if value.is_a?(Array)
+
+      value.to_s.split(",").map(&:strip).reject(&:empty?)
+    end
 
     def truthy?(value)
       case value

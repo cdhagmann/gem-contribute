@@ -14,19 +14,14 @@ module GemContribute
     #     <gem-name>  <count>  <github.com/owner/repo>
     #     ...
     class Scan
-      # GitHub's `labels=foo,bar` query is an AND, not an OR, so passing the
-      # full set of beginner-friendly variants returns almost nothing. Stage 1
-      # uses the canonical `good first issue` label only — the "render labels
-      # verbatim" promise in ADR-0005 belongs to display, not to server-side
-      # filtering. Future stages can call once per label and dedupe.
-      DEFAULT_LABEL = "good first issue"
-
       def initialize(stdout: $stdout, stderr: $stderr, output: nil,
                      resolver: Resolver.new,
-                     adapter: HostAdapters::GitHubAdapter.new)
+                     adapter: HostAdapters::GitHubAdapter.new,
+                     config: GemContribute::Config.new)
         @output = output || Output::Standard.new(out: stdout, err: stderr)
         @resolver = resolver
         @adapter = adapter
+        @config = config
       end
 
       # @param argv [Array<String>] passed-in args (no leading "scan")
@@ -99,11 +94,18 @@ module GemContribute
       end
 
       def issue_count(project)
-        issues = @adapter.issues(project, labels: [DEFAULT_LABEL])
-        issues.size
-      rescue AdapterError, AuthRequired => e
-        @output.warn("  warning: #{project.gem_name} (#{project.host}/#{project.owner}/#{project.repo}): #{e.message}")
-        0
+        warned = false
+        issues = @config.preferred_labels.flat_map do |label|
+          @adapter.issues(project, labels: [label])
+        rescue AdapterError, AuthRequired => e
+          unless warned
+            location = "#{project.host}/#{project.owner}/#{project.repo}"
+            @output.warn("  warning: #{project.gem_name} (#{location}): #{e.message}")
+            warned = true
+          end
+          []
+        end
+        issues.uniq { |i| i["number"] }.size
       end
 
       def print_ranked(ranked, claim_index)

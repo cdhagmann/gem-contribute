@@ -81,6 +81,17 @@ RSpec.describe GemContribute::Config do
     end
   end
 
+  describe "#preferred_labels" do
+    it "returns the defaults when not configured" do
+      expect(config.preferred_labels).to eq(GemContribute::Config::DEFAULT_PREFERRED_LABELS)
+    end
+
+    it "returns the configured list when set as a YAML array" do
+      File.write(path, YAML.dump("preferred_labels" => ["help wanted", "beginner"]))
+      expect(config.preferred_labels).to eq(["help wanted", "beginner"])
+    end
+  end
+
   describe "#set" do
     it "writes the value and makes it readable" do
       config.set("clone_root", "~/code/gems")
@@ -90,6 +101,18 @@ RSpec.describe GemContribute::Config do
 
     it "raises ArgumentError for unknown keys" do
       expect { config.set("unknown_key", "value") }.to raise_error(ArgumentError, /unknown config key/)
+    end
+
+    it "parses preferred_labels from a comma-separated string" do
+      config.set("preferred_labels", "good first issue, help wanted")
+      reloaded = described_class.new(path: path)
+      expect(reloaded.preferred_labels).to eq(["good first issue", "help wanted"])
+    end
+
+    it "stores preferred_labels as an array when given one" do
+      config.set("preferred_labels", ["good first issue", "beginner"])
+      reloaded = described_class.new(path: path)
+      expect(reloaded.preferred_labels).to eq(["good first issue", "beginner"])
     end
   end
 

@@ -9,7 +9,7 @@ $ gem-contribute scan
 Scanning Gemfile.lock (44 gems)...
 44 gems · 42 on github.com · 2 unknown source
 
-Top contributable projects (by open `good first issue` count):
+Top contributable projects (by open contributable issue count):
   rubocop          4  github.com/rubocop/rubocop
   rspec            1  github.com/rspec/rspec
   rspec-core       1  github.com/rspec/rspec
@@ -46,7 +46,7 @@ The CLI is a small set of subcommands:
 ```
 gem-contribute init                   One-time interactive setup (sets clone_root, then auth).
 gem-contribute scan [path]            Summarize the contributable surface of a Gemfile.lock.
-gem-contribute issues <gem|all>       List "good first issue" issues for one gem (or all).
+gem-contribute issues <gem|all>       List contributable issues for one gem (or all).
 gem-contribute auth login             Authenticate with GitHub via OAuth device flow.
 gem-contribute fork <gem|owner/repo>  Fork and clone any GitHub repo, land on the default branch.
 gem-contribute fix <gem>/<issue#>     Fork, clone, and branch from main for a specific issue.
@@ -86,9 +86,20 @@ gem-contribute config set clone_root ~/Projects/oss
 gem-contribute config list
 ```
 
-| Key          | Notes                                                                              |
-|--------------|------------------------------------------------------------------------------------|
-| `clone_root` | Where `fix` clones forks (`<root>/<owner>/<repo>`). Set via `init` or `config set`. No default — `fix` errors if unset. |
+| Key                | Default | Notes |
+|--------------------|---------|-------|
+| `clone_root`       | _(none)_ | Where `fix` and `fork` clone repos (`<root>/<owner>/<repo>`). Set via `init` or `config set`. `fix` errors if unset. |
+| `editor`           | `$EDITOR` | Editor launched by `fix -e` / `fork -e`. Falls back to `$EDITOR` if unset. |
+| `ai_tool`          | _(none)_ | AI coding tool launched by `fix -a` / `fork -a` with the clone directory as cwd. |
+| `comment_on_fix`   | `true` | Post a "working on this" comment on the issue when `fix` runs. Set to `false` to opt out globally; use `--no-comment` to opt out per invocation. |
+| `preferred_labels` | `["good first issue", "good-first-issue", "help wanted"]` | Labels `scan` and `issues` query when counting contributable work. Each label is fetched separately (GitHub's API applies AND logic when labels are joined), then deduplicated by issue number. Pass a comma-separated string or set a YAML list directly. |
+
+Per-repo comment overrides (`comment_on_fix_overrides`) are YAML-only — edit `~/.config/gem-contribute/config.yml` directly:
+
+```yaml
+comment_on_fix_overrides:
+  owner/repo: false
+```
 
 ## Design
 
