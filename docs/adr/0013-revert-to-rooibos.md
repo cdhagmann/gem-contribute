@@ -55,7 +55,7 @@ Use **Rooibos** as the TUI framework. `ratatui_ruby` is the rendering layer Rooi
 
 **On `CLAUDE.md`:** Already says Rooibos. No change needed.
 
-**On the workshop docs:** Workshop is over; archive `docs/workshop.md` and any workshop-specific framing.
+**On the workshop docs:** Workshop is over; archive `docs/archive/workshop.md` and any workshop-specific framing.
 
 **On ADR-0010:** marked Superseded by ADR-0013.
 

@@ -49,7 +49,7 @@ Bubbletea wins broadly on Mac+Linux; ratatui_ruby wins on Windows. For a regiona
 
 **Maintainer alignment.** Rooibos and `ratatui_ruby` were both Kerrick Long: one mind, one ecosystem. Charm-Ruby splits maintainership across charmbracelet (Go upstream) and Marco Roth (Ruby bindings, plus many other projects). When Go upstream bumps an API, Marco's lag determines our exposure. Mitigation: pin to a known-good version; bump deliberately.
 
-**Windows attendees compile.** No precompiled bubbletea binary for Windows. Document the source-build path in `docs/workshop.md` for any Windows attendee.
+**Windows attendees compile.** No precompiled bubbletea binary for Windows. Document the source-build path in `docs/archive/workshop.md` for any Windows attendee.
 
 ## Alternatives considered
 
@@ -59,7 +59,7 @@ Bubbletea wins broadly on Mac+Linux; ratatui_ruby wins on Windows. For a regiona
 
 ## Consequences
 
-**On dependencies:** remove `rooibos` from the gemspec. Add `bubbletea` (`~> 0.1.4`) and `lipgloss` (`~> 0.2.2`). Drop the `ratatui_ruby` Rust-toolchain warning from `docs/workshop.md`.
+**On dependencies:** remove `rooibos` from the gemspec. Add `bubbletea` (`~> 0.1.4`) and `lipgloss` (`~> 0.2.2`). Drop the `ratatui_ruby` Rust-toolchain warning from `docs/archive/workshop.md`.
 
 **On `docs/design.md`:** the TUI-layer section needs reworking — fragments become bubbletea models composed by routing, lambda-as-constant examples are replaced with idiomatic class-with-mixin examples, the Command list (`Command.http`, etc.) is replaced with the wrapper helpers defined above.
 

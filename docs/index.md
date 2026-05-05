@@ -95,7 +95,7 @@ The short version:
 
 The tool is *for* finding contributable projects, so it had better be one. See [`CONTRIBUTING.md`](https://github.com/cdhagmann/gem-contribute/blob/main/CONTRIBUTING.md) and [open issues tagged `good first issue`](https://github.com/cdhagmann/gem-contribute/issues?q=is%3Aopen+label%3A%22good+first+issue%22).
 
-If you're attending Blue Ridge Ruby 2026 and arrived here from the workshop, see [`workshop.md`](workshop.md) for the exercises.
+If you're looking for the Blue Ridge Ruby 2026 workshop materials, see [`archive/workshop.md`](archive/workshop.md). The workshop concluded 2026-05-02; the materials are kept for reference.
 
 ## License
 
