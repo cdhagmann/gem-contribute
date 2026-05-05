@@ -162,7 +162,7 @@ A `plugins.rb` entry point at the root of the gem registers a Bundler plugin com
 
 **Constraints:**
 - Plugin entry point MUST NOT require Rooibos or `ratatui_ruby` (per ADR-0014). TUI loading is gated to the standalone binary.
-- Bare `bundle contribute` runs `scan` (resolved per OPEN_QUESTIONS Q3a; tracked as [#63](https://github.com/cdhagmann/gem-contribute/issues/63)).
+- Bare `bundle contribute` runs `scan` (resolved per OPEN_QUESTIONS Q3a).
 - `bundle contribute <verb>` mirrors `gem-contribute <verb>`.
 
 **Acceptance:**

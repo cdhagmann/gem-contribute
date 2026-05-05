@@ -52,7 +52,7 @@ CLI only — no TUI from the plugins. Reasoning: Bundler and RubyGems plugins ar
 
 ## Q3a. ~~Bare-call default for the plugins: `scan` or `list all`?~~ — ANSWERED 2026-05-05
 
-`scan`. Matches `bundle fund` — runs immediately and prints a ranked summary, no subcommand needed. Tracked as [#63](https://github.com/cdhagmann/gem-contribute/issues/63).
+`scan`. Matches `bundle fund` — runs immediately and prints a ranked summary, no subcommand needed. Decision folded into [#38](https://github.com/cdhagmann/gem-contribute/issues/38) and [#39](https://github.com/cdhagmann/gem-contribute/issues/39).
 
 ---
 
