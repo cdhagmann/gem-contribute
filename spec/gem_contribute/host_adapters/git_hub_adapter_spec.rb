@@ -106,8 +106,27 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
           clone_url: "https://github.com/alice/sidekiq.git",
           fork_url: "https://github.com/alice/sidekiq",
           viewer: "alice",
-          reused: true
+          reused: true,
+          owned_upstream: false
         )
+        expect(WebMock).not_to have_requested(:post, %r{/forks})
+      end
+
+      it "returns owned_upstream: true and skips fork_exists? check when viewer is the project owner" do
+        owned_project = GemContribute::Project.new(
+          gem_name: "gem-contribute", host: "github.com",
+          owner: "alice", repo: "gem-contribute", metadata: {}
+        )
+
+        result = adapter.fork(owned_project)
+
+        expect(result).to have_attributes(
+          clone_url: "https://github.com/alice/gem-contribute.git",
+          viewer: "alice",
+          reused: true,
+          owned_upstream: true
+        )
+        expect(WebMock).not_to have_requested(:get, %r{/repos/alice/gem-contribute})
         expect(WebMock).not_to have_requested(:post, %r{/forks})
       end
 

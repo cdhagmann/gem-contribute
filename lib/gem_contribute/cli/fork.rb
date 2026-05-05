@@ -107,7 +107,9 @@ module GemContribute
       end
 
       def fork_status_line(info, project)
-        if info.reused
+        if info.owned_upstream
+          "  You own #{project.owner}/#{project.repo} upstream. Cloning directly; no fork needed."
+        elsif info.reused
           "  Reusing existing fork at #{info.viewer}/#{project.repo}."
         else
           "  Forked → #{info.viewer}/#{project.repo}."

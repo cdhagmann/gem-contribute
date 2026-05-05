@@ -30,11 +30,12 @@ module GemContribute
   # See ADR-0001 for the JIT auth contract.
   class HostAdapter
     # Result of a successful `fork(project)`.
-    # - clone_url:  HTTPS URL suitable for `git clone`.
-    # - fork_url:   human-readable web URL of the fork (used in summaries).
-    # - viewer:     the authenticated user's login (and the fork's owner).
-    # - reused:     true if the fork already existed; false if just created.
-    ForkResult = Data.define(:clone_url, :fork_url, :viewer, :reused)
+    # - clone_url:      HTTPS URL suitable for `git clone`.
+    # - fork_url:       human-readable web URL of the fork (used in summaries).
+    # - viewer:         the authenticated user's login (and the fork's owner).
+    # - reused:         true if the fork already existed; false if just created.
+    # - owned_upstream: true when viewer == project.owner (viewer IS the upstream).
+    ForkResult = Data.define(:clone_url, :fork_url, :viewer, :reused, :owned_upstream)
 
     def issues(_project, labels: nil)
       raise NotImplementedError

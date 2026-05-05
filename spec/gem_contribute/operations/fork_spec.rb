@@ -24,7 +24,7 @@ RSpec.describe GemContribute::Operations::Fork do
       GemContribute::HostAdapter::ForkResult.new(
         clone_url: "https://github.com/alice/sidekiq.git",
         fork_url: "https://github.com/alice/sidekiq",
-        viewer: "alice", reused: false
+        viewer: "alice", reused: false, owned_upstream: false
       )
     )
 
@@ -35,19 +35,30 @@ RSpec.describe GemContribute::Operations::Fork do
       clone_url: "https://github.com/alice/sidekiq.git",
       fork_url: "https://github.com/alice/sidekiq",
       upstream_url: "https://github.com/sidekiq/sidekiq",
-      viewer: "alice", reused: false
+      viewer: "alice", reused: false, owned_upstream: false
     )
   end
 
   it "preserves the reused flag from the adapter" do
     allow(adapter).to receive(:fork).and_return(
       GemContribute::HostAdapter::ForkResult.new(
-        clone_url: "x", fork_url: "y", viewer: "alice", reused: true
+        clone_url: "x", fork_url: "y", viewer: "alice", reused: true, owned_upstream: false
       )
     )
 
     result = operation.call(adapter: adapter, project: project)
     expect(result.value!.reused).to be(true)
+  end
+
+  it "preserves owned_upstream: true from the adapter" do
+    allow(adapter).to receive(:fork).and_return(
+      GemContribute::HostAdapter::ForkResult.new(
+        clone_url: "x", fork_url: "y", viewer: "sidekiq", reused: true, owned_upstream: true
+      )
+    )
+
+    result = operation.call(adapter: adapter, project: project)
+    expect(result.value!.owned_upstream).to be(true)
   end
 
   it "returns Failure(:unauthenticated) when the adapter raises AuthRequired" do

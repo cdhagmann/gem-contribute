@@ -30,7 +30,7 @@ RSpec.describe GemContribute::CLI::Fork do
       clone_url: "https://github.com/alice/sidekiq.git",
       fork_url: "https://github.com/alice/sidekiq",
       upstream_url: "https://github.com/sidekiq/sidekiq",
-      viewer: "alice", reused: false
+      viewer: "alice", reused: false, owned_upstream: false
     )
   end
   let(:clone_info) { GemContribute::Operations::Clone::Result.new(path: target_path, reused: false) }
@@ -199,6 +199,16 @@ RSpec.describe GemContribute::CLI::Fork do
 
       expect(stdout.string).to include("Reusing existing fork at alice/sidekiq")
       expect(stdout.string).to include("Reusing existing clone at #{target_path}")
+    end
+
+    it "prints owned-upstream message when viewer is the project owner" do
+      owned_fork = fork_info.with(reused: true, owned_upstream: true)
+      allow(fork_op).to receive(:call).and_return(Success(owned_fork))
+      allow(clone_op).to receive(:call).and_return(Success(clone_info))
+
+      cli.bootstrap(adapter, project)
+
+      expect(stdout.string).to include("You own sidekiq/sidekiq upstream. Cloning directly; no fork needed.")
     end
   end
 end
