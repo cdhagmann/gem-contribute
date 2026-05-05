@@ -11,7 +11,7 @@ $ gem install gem-contribute
 $ gem-contribute scan
 44 gems · 42 on github.com · 2 unknown source
 
-Top contributable projects (by open `good first issue` count):
+Top contributable projects (by open contributable issue count):
   rubocop          4  github.com/rubocop/rubocop
   rspec            1  github.com/rspec/rspec
   reline           1  github.com/ruby/reline
@@ -24,10 +24,10 @@ The premise: the gems in your `Gemfile.lock` are the projects you have the most 
 
 ```sh
 gem install gem-contribute            # one-time install
-gem-contribute auth login             # one-time GitHub OAuth (device flow, no token paste)
+gem-contribute init                   # one-time setup: set clone_root, then GitHub OAuth
 gem-contribute scan                   # see what's worth contributing to
 gem-contribute issues rubocop         # drill into one project's issues
-gem-contribute fix rubocop/12345      # fork, clone, branch (~/code/oss/<owner>/<repo>)
+gem-contribute fix rubocop/12345      # fork, clone, branch (<clone_root>/rubocop/rubocop)
 # ... make your change, commit ...
 gem-contribute submit                 # push, then open the PR compare page in your browser
 ```
@@ -36,21 +36,26 @@ gem-contribute submit                 # push, then open the PR compare page in y
 
 ## Status
 
-- **v0.1**: a CLI with `scan`, `issues`, `auth`, `fix`, `submit`, and `config`. GitHub-only.
-- **Planned**: a Rooibos TUI that does all of the above as a single keyboard-driven session ([issue #2](https://github.com/cdhagmann/gem-contribute/issues/2)).
-- **Workshop project**: built for [Blue Ridge Ruby 2026](https://blueridgeruby.com). [Lightning talk slides →](talk/)
+v0.x, heading toward 1.0. The CLI is the v1.0 surface — all verbs below are live on rubygems.org. What follows 1.0:
+
+- **v1.x** — `bundle contribute` and `gem contribute` plugins; multi-host adapters (GitLab, gem.coop).
+- **v2.0** — Rooibos TUI as the bare-invocation experience ([issue #2](https://github.com/cdhagmann/gem-contribute/issues/2)).
+
+See [`ROADMAP.md`](ROADMAP.md) for detail.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `gem-contribute scan [path]` | Parse `Gemfile.lock`, resolve each gem to its source repo, rank GitHub-hosted projects by open `good first issue` count. |
-| `gem-contribute issues <gem>` | List the open good-first-issues for one gem with number, title, and URL. |
+| `gem-contribute init` | One-time interactive setup: set `clone_root`, then authenticate with GitHub. |
+| `gem-contribute scan [path]` | Parse `Gemfile.lock`, resolve each gem to its source repo, rank GitHub-hosted projects by open contributable issue count. |
+| `gem-contribute issues <gem>` | List open contributable issues for one gem with number, title, and URL. |
 | `gem-contribute issues all` | Iterate every github.com gem in the lockfile; print only those with open issues. |
 | `gem-contribute auth login` | Authenticate with GitHub via OAuth device flow (no token paste, no client secret). |
 | `gem-contribute auth status` | Show whether the cached token is still valid. |
 | `gem-contribute auth logout` | Drop the cached token. |
-| `gem-contribute fix <gem>/<n>` | Fork the gem's repo, clone the fork to `<clone_root>/<owner>/<repo>`, branch from default. |
+| `gem-contribute fork <gem>` | Fork and clone a gem's repo, land on the default branch. Use this to explore before picking an issue. |
+| `gem-contribute fix <gem>/<n>` | Fork the gem's repo, clone to `<clone_root>/<owner>/<repo>`, create a `gem-contribute/issue-<n>` branch. Re-running the same command is safe — switches to the existing branch. |
 | `gem-contribute submit` | From inside a clone, push the current branch and open a pre-filled PR compare page in your browser. |
 | `gem-contribute config set <k> <v>` | Persist user preferences. |
 | `gem-contribute config list` | Show current configuration. |
@@ -63,7 +68,11 @@ User config lives at `~/.config/gem-contribute/config.yml`.
 
 | Key | Default | Notes |
 |---|---|---|
-| `clone_root` | `~/code/oss` | Where `fix` clones forks (`<root>/<owner>/<repo>`). |
+| `clone_root` | _(none)_ | Where `fix` and `fork` clone repos (`<root>/<owner>/<repo>`). Set via `init`. `fix` errors if unset. |
+| `editor` | `$EDITOR` | Editor launched by `fix -e` / `fork -e`. |
+| `ai_tool` | _(none)_ | AI coding tool launched by `fix -a` / `fork -a` with the clone directory as cwd. |
+| `comment_on_fix` | `true` | Post a "working on this" comment on the issue when `fix` runs. `--no-comment` to opt out per invocation. |
+| `preferred_labels` | `["good first issue", "good-first-issue", "help wanted"]` | Labels `scan` and `issues` query when counting contributable work. Comma-separated string or YAML list. |
 
 Manage with `gem-contribute config set <key> <value>` rather than editing the YAML by hand.
 
