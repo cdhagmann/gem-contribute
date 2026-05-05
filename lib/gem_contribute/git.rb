@@ -15,6 +15,10 @@ module GemContribute
       run!(["git", "-C", path, "checkout", "-b", branch])
     end
 
+    def switch_branch(path, branch)
+      run!(["git", "-C", path, "checkout", branch])
+    end
+
     def add_remote(path, name, url)
       # Idempotent: if the remote already exists (e.g. reusing a clone)
       # we silently succeed rather than fail the whole flow.

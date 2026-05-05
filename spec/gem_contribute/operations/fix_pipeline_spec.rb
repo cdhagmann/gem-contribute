@@ -29,7 +29,7 @@ RSpec.describe GemContribute::Operations::FixPipeline do
   let(:clone_result) do
     GemContribute::Operations::Clone::Result.new(path: "/clones/sidekiq/sidekiq", reused: false)
   end
-  let(:branch_result) { GemContribute::Operations::Branch::Result.new(name: "gem-contribute/issue-1234") }
+  let(:branch_result) { GemContribute::Operations::Branch::Result.new(name: "gem-contribute/issue-1234", reused: false) }
 
   let(:pipeline) do
     described_class.new(fork: fork_op, clone: clone_op, branch: branch_op, announce: announce_op)

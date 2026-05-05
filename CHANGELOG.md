@@ -4,6 +4,10 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+### Fixed
+
+- `gem-contribute fix <gem>/<issue>` is now idempotent: re-running the same command switches to the existing `gem-contribute/issue-<N>` branch instead of failing with "branch already exists". The summary line changes to "Resumed: branch … already exists." to make re-runs visually distinct from fresh runs (closes [#54](https://github.com/cdhagmann/gem-contribute/issues/54)).
+
 ### Changed
 
 - README rewritten for the v1 audience. Status section now describes the v1.0 / v1.x / v2.0 sequencing (CLI at 1.0; Bundler + RubyGems plugins and multi-host adapters at 1.x; Rooibos TUI at 2.0) and points at [`docs/ROADMAP.md`](docs/ROADMAP.md) and [ADR-0015](docs/adr/0015-descope-v1-cli-only.md) for detail. Workshop framing removed (closes [#46](https://github.com/cdhagmann/gem-contribute/issues/46)).
