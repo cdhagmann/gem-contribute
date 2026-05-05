@@ -50,14 +50,9 @@ CLI only — no TUI from the plugins. Reasoning: Bundler and RubyGems plugins ar
 
 ---
 
-## Q3a. Bare-call default for the plugins: `scan` or `list all`?
+## Q3a. ~~Bare-call default for the plugins: `scan` or `list all`?~~ — ANSWERED 2026-05-05
 
-User flagged as undecided. Both are read-only summary actions; difference is granularity and verbosity.
-
-- **`scan`** — current verb; prints the summary table (`47 gems · 44 on github.com · 2 on gitlab.com · …`) plus top contributable projects by issue count. Hits the network for the issue counts (cached).
-- **`list all`** — would presumably print every gem with its resolved source. Less network, more data, less curated.
-
-No urgency to pick — can be deferred to Phase 4. Worth deciding alongside the verb taxonomy review (does `list` exist as a separate verb? sub-verbs of `list`?).
+`scan`. Matches `bundle fund` — runs immediately and prints a ranked summary, no subcommand needed. Tracked as [#63](https://github.com/cdhagmann/gem-contribute/issues/63).
 
 ---
 

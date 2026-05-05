@@ -162,7 +162,7 @@ A `plugins.rb` entry point at the root of the gem registers a Bundler plugin com
 
 **Constraints:**
 - Plugin entry point MUST NOT require Rooibos or `ratatui_ruby` (per ADR-0014). TUI loading is gated to the standalone binary.
-- Bare `bundle contribute` runs the default verb (TBD per OPEN_QUESTIONS Q3a: `scan` or `list all`).
+- Bare `bundle contribute` runs `scan` (resolved per OPEN_QUESTIONS Q3a; tracked as [#63](https://github.com/cdhagmann/gem-contribute/issues/63)).
 - `bundle contribute <verb>` mirrors `gem-contribute <verb>`.
 
 **Acceptance:**
@@ -179,7 +179,7 @@ A `rubygems_plugin.rb` entry point registers a `Gem::Command` subclass per RubyG
 
 **Constraints:**
 - Same TUI-load gating as the Bundler plugin.
-- Same default-verb behavior as the Bundler plugin.
+- Bare `gem contribute` runs `scan` (same decision as Q3a above).
 
 **Acceptance:**
 - [ ] `gem install gem-contribute` registers the `Gem::Command`
