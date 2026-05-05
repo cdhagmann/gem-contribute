@@ -12,11 +12,11 @@ Before doing anything, read these in order:
 2. `README.md` — what the project is
 3. `docs/design.md` — the architecture
 4. `docs/adr/` — every ADR; they constrain implementation choices
-5. `docs/prep-plan.md` — the staged plan I want you to execute
+5. `docs/archive/prep-plan.md` — the staged plan I want you to execute
 
 Then check out the current state of the repo. Right now there's no Ruby code yet — just docs. The very first thing you do is generate the gem skeleton (gemspec, Gemfile, lib/, bin/, spec/) following standard Bundler conventions for a CLI gem with a native-extension dependency. Use the gem name, version, and license from the README. Don't add any runtime dependencies that aren't justified by the design doc; we'll add `rooibos` and `ratatui_ruby` in Stage 3.
 
-Then start Stage 1 from `docs/prep-plan.md`.
+Then start Stage 1 from `docs/archive/prep-plan.md`.
 
 Working rules for our collaboration:
 
@@ -37,4 +37,4 @@ Start by reading the docs and confirming the plan. Then go.
 - If Claude Code asks clarifying questions before reading the docs, tell it to read first and then ask.
 - If it suggests architecture changes early, fine — but require an ADR update *before* the code change, not after.
 - The "stop at every stage boundary" rule is the most important one. Without it, agentic coding sessions tend to overshoot. Reinforce it if needed.
-- The 12–20 hour estimate in `prep-plan.md` is honest, not pessimistic. Plan accordingly.
+- The 12–20 hour estimate in `archive/prep-plan.md` is honest, not pessimistic. Plan accordingly.
