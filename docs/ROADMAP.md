@@ -29,17 +29,20 @@ This document is the plan. Decisions still in flight live in [`OPEN_QUESTIONS.md
 - **CLI verbs.** `init`, `scan`, `issues`, `config`, `auth`, `fork`, `fix`, `submit`.
 - **HostAdapter cleanup.** ADR-0011 work landed: adapter owns host verbs, Operations layer composes them, CLI verbs compose Operations.
 - **ADR-0012 service layer (Phase 1).** dry-monads `Result`, dry-operation pipelines, dry-initializer initializers, output-free `Operations::*`. Merged via [PR #48](https://github.com/cdhagmann/gem-contribute/pull/48) on 2026-05-04.
-- **Basic CI.** rubocop + rspec on push/PR landed via [PR #21](https://github.com/cdhagmann/gem-contribute/pull/21) (closes [#7](https://github.com/cdhagmann/gem-contribute/issues/7)). Plugin-install smoke and gated integration tests still pending under [#43](https://github.com/cdhagmann/gem-contribute/issues/43).
+- **Basic CI.** rubocop + rspec on push/PR landed via [PR #21](https://github.com/cdhagmann/gem-contribute/pull/21) (closes [#7](https://github.com/cdhagmann/gem-contribute/issues/7)). Plugin-install smoke deferred to v1.x.
 - **PR template + automated check** ([PR #53](https://github.com/cdhagmann/gem-contribute/pull/53)). Tooling, not part of the v1 phases per se.
 - **ADR-0012 Phase 2 (CLI output pipeline).** `Output::Standard`/`Output::Null`, `tty-spinner`-backed `#progress`, `tty-prompt` in Init. Merged via [PR #51](https://github.com/cdhagmann/gem-contribute/pull/51) on 2026-05-04.
+- **Phase 6 polish (all but #9 and the v1.0 tag).** `preferred_labels` config (#1, [PR #60](https://github.com/cdhagmann/gem-contribute/pull/60)), owned-upstream fix message (#10, [PR #59](https://github.com/cdhagmann/gem-contribute/pull/59)), idempotent `fix` re-runs (#54, [PR #61](https://github.com/cdhagmann/gem-contribute/pull/61)), workshop docs archived (#45, [PR #58](https://github.com/cdhagmann/gem-contribute/pull/58)), release infrastructure (#40–#44, [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55)), README rewritten (#46, [PR #56](https://github.com/cdhagmann/gem-contribute/pull/56)).
 
 ## In flight
 
-- **Release infrastructure (Phase 6, partial)** — `release.yml` Trusted Publishing workflow + 0.3.1 cut. Open in [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55).
+Nothing — Phase 6 polish is landing. See Phase 6 below.
 
 ## What hasn't started
 
-- Remaining release infrastructure (CONTRIBUTING.md polish, README rewrite, plugin smoke tests, the v1.0 tag itself)
+- [#9](https://github.com/cdhagmann/gem-contribute/issues/9) — `--label LABEL` flag for one-off overrides (deferred past v1.0)
+- Plugin smoke tests (deferred to v1.x with the plugins themselves; tracked under [#43](https://github.com/cdhagmann/gem-contribute/issues/43))
+- The v1.0 tag itself
 - v1.x work (plugins, multi-host adapters)
 - v2.0 work (Rooibos TUI)
 
@@ -123,20 +126,20 @@ Moved CLI verbs to a semantic output abstraction so the look-and-feel can evolve
 Everything required to call it 1.0 and not 0.x. Phase number stays at 6 to preserve the existing `phase:6` issue labels and historical references; in the post-ADR-0015 ordering it's the third remaining v1.0 phase.
 
 **Pre-existing user-facing issues that fold into this phase:**
-- [ ] 🌱 [#1 — Add `preferred_labels` config so non-canonical good-first-issue labels are caught](https://github.com/cdhagmann/gem-contribute/issues/1)
-- [ ] 🌱 [#9 — Add `--label LABEL` flag to scan and issues for one-off overrides](https://github.com/cdhagmann/gem-contribute/issues/9) (related to #1)
-- [ ] 🌱 [#10 — Friendlier message when `fix` runs against a repo you own](https://github.com/cdhagmann/gem-contribute/issues/10)
-- [ ] 🌱 [#54 — Make `fix` re-runs idempotent (don't error when branch already exists)](https://github.com/cdhagmann/gem-contribute/issues/54)
+- [x] 🌱 [#1 — Add `preferred_labels` config so non-canonical good-first-issue labels are caught](https://github.com/cdhagmann/gem-contribute/issues/1) — [PR #60](https://github.com/cdhagmann/gem-contribute/pull/60)
+- [ ] 🌱 [#9 — Add `--label LABEL` flag to scan and issues for one-off overrides](https://github.com/cdhagmann/gem-contribute/issues/9) (related to #1; deferred past v1.0)
+- [x] 🌱 [#10 — Friendlier message when `fix` runs against a repo you own](https://github.com/cdhagmann/gem-contribute/issues/10) — [PR #59](https://github.com/cdhagmann/gem-contribute/pull/59)
+- [x] 🌱 [#54 — Make `fix` re-runs idempotent (don't error when branch already exists)](https://github.com/cdhagmann/gem-contribute/issues/54) — [PR #61](https://github.com/cdhagmann/gem-contribute/pull/61)
 
 **Release infrastructure:**
-- [ ] 🌱 [#40](https://github.com/cdhagmann/gem-contribute/issues/40) — Add CHANGELOG.md *(file exists; close when satisfied)*
-- [ ] 🌱 [#41](https://github.com/cdhagmann/gem-contribute/issues/41) — Add CONTRIBUTING.md *(file exists; close when satisfied)*
-- [ ] [#42](https://github.com/cdhagmann/gem-contribute/issues/42) — MAINTAINER.md (release process, OAuth App, plugin verification) *(release-process and OAuth sections done in [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55); plugin verification deferred to v1.x with the plugins themselves)*
-- [ ] OAuth App: stay on personal-account App for v1.0 (per Q13); migrate when rate limits bite
-- [ ] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow: rubocop + rspec done; gated integration tests still pending; plugin install smoke deferred to v1.x with plugins
-- [x] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow with **Trusted Publishing (OIDC)** (in [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55), goes live with the 0.3.1 cut)
-- [ ] 🌱 [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/`
-- [x] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience (CLI-only framing per ADR-0015; "TUI coming in v2.0", "plugins coming in v1.x") — done in [PR #56](https://github.com/cdhagmann/gem-contribute/pull/56)
+- [x] 🌱 [#40](https://github.com/cdhagmann/gem-contribute/issues/40) — Add CHANGELOG.md *(closed — file exists and is maintained)*
+- [x] 🌱 [#41](https://github.com/cdhagmann/gem-contribute/issues/41) — Add CONTRIBUTING.md *(closed — file exists)*
+- [x] [#42](https://github.com/cdhagmann/gem-contribute/issues/42) — MAINTAINER.md *(closed — release-process and OAuth sections done in [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55); plugin verification deferred to v1.x with the plugins themselves)*
+- [x] OAuth App: stay on personal-account App for v1.0 (per Q13); migrate when rate limits bite
+- [x] [#43](https://github.com/cdhagmann/gem-contribute/issues/43) — CI workflow: rubocop + rspec on push/PR done *(closed — plugin install smoke deferred to v1.x with plugins)*
+- [x] [#44](https://github.com/cdhagmann/gem-contribute/issues/44) — Release workflow with **Trusted Publishing (OIDC)** — [PR #55](https://github.com/cdhagmann/gem-contribute/pull/55)
+- [x] 🌱 [#45](https://github.com/cdhagmann/gem-contribute/issues/45) — Archive workshop docs to `docs/archive/` — [PR #58](https://github.com/cdhagmann/gem-contribute/pull/58)
+- [x] [#46](https://github.com/cdhagmann/gem-contribute/issues/46) — README rewrite for v1 audience — [PR #56](https://github.com/cdhagmann/gem-contribute/pull/56)
 - [ ] Tag `v1.0.0`, push to rubygems
 
 ---
