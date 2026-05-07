@@ -60,40 +60,36 @@ module GemContribute
 
         @output.info("Scanning #{projects.size} github.com gems from #{@lockfile_path}...\n")
 
-        any = false
-        projects.each do |project|
-          issues = fetch_issues(project)
-          next if issues.empty?
-
-          any = true
-          print_project_issues(project, issues)
-        end
-
-        @output.info("(no contributable issues found across #{projects.size} gems)") unless any
+        issues_by_repo = batch_fetch_issues(projects)
+        print_all_project_issues(projects, issues_by_repo)
         0
       rescue LockfileNotFound => e
         @output.error("gem-contribute: #{e.message}")
         1
       end
 
-      def issues_for_project(project)
-        errors = []
-        issues = @config.preferred_labels.flat_map do |label|
-          @adapter.issues(project, labels: [label])
-        rescue AdapterError => e
-          errors << e
-          []
-        end
-        raise errors.first if issues.empty? && errors.any?
+      def print_all_project_issues(projects, issues_by_repo)
+        any = false
+        projects.each do |project|
+          issues = issues_by_repo["#{project.owner}/#{project.repo}"] || []
+          next if issues.empty?
 
-        issues.uniq { |i| i["number"] }
+          any = true
+          print_project_issues(project, issues)
+        end
+        @output.info("(no contributable issues found across #{projects.size} gems)") unless any
       end
 
-      def fetch_issues(project)
-        issues_for_project(project)
+      def batch_fetch_issues(projects)
+        @adapter.issues_matching_labels(projects, labels: @config.preferred_labels)
       rescue AdapterError => e
-        @output.warn("  warning: #{project.gem_name}: #{e.message}")
-        []
+        @output.warn("  warning: issue search failed: #{e.message}")
+        {}
+      end
+
+      def issues_for_project(project)
+        by_repo = @adapter.issues_matching_labels([project], labels: @config.preferred_labels)
+        by_repo["#{project.owner}/#{project.repo}"] || []
       end
 
       def list_issues(project)

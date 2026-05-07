@@ -82,30 +82,19 @@ module GemContribute
       end
 
       def rank_by_issue_count(projects)
-        # We hit the API anonymously here. With a 60/hr unauthenticated rate
-        # limit, scanning a 50-gem lockfile is the dominant pressure on this
-        # CLI. The 7-day RubyGems and 5-min issues caches absorb most repeats.
+        issues_by_repo = fetch_issues_for_projects(projects)
         results = projects.map do |project|
-          count = issue_count(project)
+          count = (issues_by_repo["#{project.owner}/#{project.repo}"] || []).size
           [project, count]
-        end.compact
-
+        end
         results.reject { |_, count| count.zero? }.sort_by { |_, count| -count }
       end
 
-      def issue_count(project)
-        warned = false
-        issues = @config.preferred_labels.flat_map do |label|
-          @adapter.issues(project, labels: [label])
-        rescue AdapterError, AuthRequired => e
-          unless warned
-            location = "#{project.host}/#{project.owner}/#{project.repo}"
-            @output.warn("  warning: #{project.gem_name} (#{location}): #{e.message}")
-            warned = true
-          end
-          []
-        end
-        issues.uniq { |i| i["number"] }.size
+      def fetch_issues_for_projects(projects)
+        @adapter.issues_matching_labels(projects, labels: @config.preferred_labels)
+      rescue AdapterError, AuthRequired => e
+        @output.warn("  warning: issue search failed: #{e.message}")
+        {}
       end
 
       def print_ranked(ranked, claim_index)
