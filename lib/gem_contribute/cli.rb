@@ -23,6 +23,8 @@ module GemContribute
                                  GitHub project (e.g. `rubyevents/rubyevents`).
                                  Lands on the default branch.
                                  Flags: -e (editor), -a (AI tool).
+        open <gem>               Open the gem's GitHub repo in your default browser.
+                                 The URL is also printed on stdout as a fallback.
         fix <gem>/<issue#>       Fork the gem's repo, clone the fork, branch from main.
                                  Flags: -e (editor), -a (AI tool), --no-comment.
         submit                   Push the current branch and open a pre-filled
@@ -63,6 +65,7 @@ module GemContribute
       "config" => ->(o, e) { Config.new(stdout: o, stderr: e) },
       "auth" => ->(o, e) { Auth.new(stdout: o, stderr: e) },
       "fork" => ->(o, e) { Fork.new(stdout: o, stderr: e, clone_root: GemContribute::Config.new.clone_root) },
+      "open" => ->(o, e) { Open.new(stdout: o, stderr: e) },
       "fix" => lambda { |o, e|
         config = GemContribute::Config.new
         Fix.new(stdout: o, stderr: e, clone_root: config.clone_root, config: config)
