@@ -7,7 +7,12 @@ RSpec.describe GemContribute::CLI::Open do
   let(:stderr) { StringIO.new }
   let(:resolver) { instance_double(GemContribute::Resolver) }
   let(:opened_urls) { [] }
-  let(:browser_opener) { ->(url) { opened_urls << url; true } }
+  let(:browser_opener) do
+    lambda do |url|
+      opened_urls << url
+      true
+    end
+  end
   let(:cli) do
     described_class.new(stdout: stdout, stderr: stderr,
                         resolver: resolver, browser_opener: browser_opener)
@@ -59,9 +64,10 @@ RSpec.describe GemContribute::CLI::Open do
   end
 
   it "self-resolves `gem-contribute` without hitting the resolver" do
-    expect(resolver).not_to receive(:resolve)
+    allow(resolver).to receive(:resolve)
 
     expect(cli.run(["gem-contribute"])).to eq(0)
+    expect(resolver).not_to have_received(:resolve)
     expect(opened_urls).to eq([
                                 "https://github.com/#{GemContribute::SELF_PROJECT.owner}/" \
                                 "#{GemContribute::SELF_PROJECT.repo}"
