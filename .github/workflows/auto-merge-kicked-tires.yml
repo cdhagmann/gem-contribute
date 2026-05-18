@@ -19,6 +19,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   validate-and-merge:
@@ -72,9 +73,9 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
-          gh pr comment "$PR_NUMBER" --repo "$REPO" \
-            --body "🎉 Thanks @${PR_AUTHOR} for kicking the tires! Auto-merging."
           gh pr merge "$PR_NUMBER" --repo "$REPO" --squash --delete-branch
+          gh pr comment "$PR_NUMBER" --repo "$REPO" \
+            --body "🎉 Thanks @${PR_AUTHOR} for kicking the tires! Auto-merging." || true
 
       - name: Comment on validation failure
         if: failure() && steps.check.outputs.auto_merge == 'true'
