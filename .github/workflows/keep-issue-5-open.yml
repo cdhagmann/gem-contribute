@@ -1,0 +1,32 @@
+name: Keep issue #5 open
+
+# Issue #5 ("Call `gem-contribute fix` and `submit` against me") is the
+# perpetual contribution target — people run the tool against this repo
+# and the tool opens fix-PRs that reference #5. If someone closes it
+# (accidentally, or because a bot ages it out), this workflow reopens it
+# and explains why.
+#
+# Security note: pull_request_target isn't relevant here — this fires on
+# `issues: closed` from the base branch. The GITHUB_TOKEN needs
+# `issues: write` to reopen and comment.
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+
+jobs:
+  reopen:
+    if: github.event.issue.number == 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reopen and explain
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh issue reopen 5 --repo "$REPO" \
+            --comment "This issue is intentionally evergreen — it's the contribution target for \`gem-contribute fix\` and \`submit\` against this repo. Reopening automatically. See [CLAUDE.md](https://github.com/$REPO/blob/main/CLAUDE.md) and the issue description for context."
