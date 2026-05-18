@@ -7,6 +7,7 @@ All notable changes to this project will be documented here. The format is based
 ### Added
 
 - `preferred_labels` config key — a list of labels `scan` and `issues` query when ranking contributable projects. Default: `["good first issue", "good-first-issue", "help wanted"]`. Set with `gem-contribute config set preferred_labels "label1,label2"`. Each label triggers a separate API request; results are deduped by issue number so a shared label doesn't inflate counts (closes [#1](https://github.com/cdhagmann/gem-contribute/issues/1)).
+- `scan` and `issues all` now batch all GitHub-hosted repos into a single GitHub Search API call per 10 repos using OR semantics (`(label:"A" OR label:"B") repo:o/r1 repo:o/r2 …`). Replaces N×labels per-project Issues API calls, dramatically reducing network round trips for typical lockfiles.
 
 ### Fixed
 

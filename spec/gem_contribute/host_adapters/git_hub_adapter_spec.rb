@@ -237,6 +237,86 @@ RSpec.describe GemContribute::HostAdapters::GitHubAdapter do
     end
   end
 
+  describe "#issues_matching_labels" do
+    def project_for(owner, repo)
+      GemContribute::Project.new(gem_name: repo, host: "github.com",
+                                 owner: owner, repo: repo, metadata: {})
+    end
+
+    def search_stub(items)
+      stub_request(:get, %r{api\.github\.com/search/issues})
+        .to_return(status: 200,
+                   headers: { "Content-Type" => "application/json",
+                              "X-RateLimit-Limit" => "30",
+                              "X-RateLimit-Remaining" => "29",
+                              "X-RateLimit-Reset" => "1714510800" },
+                   body: JSON.dump("items" => items))
+    end
+
+    def search_item(number, owner, repo)
+      {
+        "number" => number,
+        "title" => "Issue #{number}",
+        "html_url" => "https://github.com/#{owner}/#{repo}/issues/#{number}",
+        "repository_url" => "https://api.github.com/repos/#{owner}/#{repo}"
+      }
+    end
+
+    it "returns a hash keyed by owner/repo with issues as values" do
+      search_stub([
+                    search_item(1, "sidekiq", "sidekiq"),
+                    search_item(2, "ruby", "rake")
+                  ])
+      rake = project_for("ruby", "rake")
+
+      result = adapter.issues_matching_labels([project, rake], labels: ["good first issue"])
+
+      expect(result["sidekiq/sidekiq"].map { |i| i["number"] }).to eq([1])
+      expect(result["ruby/rake"].map { |i| i["number"] }).to eq([2])
+    end
+
+    it "returns {} immediately when the projects list is empty" do
+      result = adapter.issues_matching_labels([], labels: ["good first issue"])
+      expect(result).to eq({})
+      expect(WebMock).not_to have_requested(:get, %r{api\.github\.com/search})
+    end
+
+    it "returns {} immediately when labels is empty" do
+      result = adapter.issues_matching_labels([project], labels: [])
+      expect(result).to eq({})
+      expect(WebMock).not_to have_requested(:get, %r{api\.github\.com/search})
+    end
+
+    it "batches repos #{described_class::SEARCH_BATCH_SIZE} at a time" do
+      search_stub([])
+
+      projects = (1..11).map { |i| project_for("owner", "gem#{i}") }
+      adapter.issues_matching_labels(projects, labels: ["good first issue"])
+
+      expect(WebMock).to have_requested(:get, %r{api\.github\.com/search/issues}).twice
+    end
+
+    it "caches by query so repeat calls with the same projects and labels hit the API once" do
+      search_stub([search_item(7, "sidekiq", "sidekiq")])
+
+      adapter.issues_matching_labels([project], labels: ["good first issue"])
+      adapter.issues_matching_labels([project], labels: ["good first issue"])
+
+      expect(WebMock).to have_requested(:get, %r{api\.github\.com/search/issues}).once
+    end
+
+    it "sends OR-combined label terms and repo: qualifiers in the search query" do
+      search_stub([])
+
+      adapter.issues_matching_labels([project], labels: ["good first issue", "help wanted"])
+
+      expect(WebMock).to have_requested(:get, %r{api\.github\.com/search/issues})
+        .with(query: hash_including(
+          "q" => 'is:issue state:open (label:"good first issue" OR label:"help wanted") repo:sidekiq/sidekiq'
+        ))
+    end
+  end
+
   describe "#pull_request_url" do
     let(:upstream) do
       GemContribute::Project.new(

@@ -135,6 +135,30 @@ module GemContribute
         get_json("/repos/#{project.owner}/#{project.repo}/issues/#{number}/comments")
       end
 
+      SEARCH_BATCH_SIZE = 10
+
+      # Fetches open issues matching ANY of the given labels across all
+      # projects, batching repos 10 at a time to stay within URL length
+      # limits. Returns a Hash keyed by "owner/repo" => [issue, ...].
+      #
+      # Uses GitHub's Search API with OR semantics for both labels and repos:
+      #   is:issue state:open (label:"A" OR label:"B") repo:o/r1 repo:o/r2 …
+      #
+      # The Search API caps at 1 000 total results and 30 req/min; for typical
+      # Gemfile.lock sizes this is not a concern.
+      def issues_matching_labels(projects, labels:)
+        return {} if projects.empty? || labels.empty?
+
+        result = Hash.new { |h, k| h[k] = [] }
+        projects.each_slice(SEARCH_BATCH_SIZE) do |batch|
+          fetch_label_batch(batch, labels: labels).each do |issue|
+            key = repo_key_from_search_result(issue)
+            result[key] << issue
+          end
+        end
+        result
+      end
+
       # GET /search/issues. Wraps GitHub's issue search; works without auth
       # (subject to the 60/hr anonymous rate limit). Returns an array of
       # issue payloads (the search response's `items` key). Cached under the
@@ -217,6 +241,26 @@ module GemContribute
 
         raise AdapterError,
               "fork not reachable after #{FORK_READINESS_RETRIES * FORK_READINESS_INTERVAL}s"
+      end
+
+      def fetch_label_batch(projects, labels:)
+        label_q = labels.map { |l| "label:\"#{l}\"" }.join(" OR ")
+        repo_q  = projects.map { |p| "repo:#{p.owner}/#{p.repo}" }.join(" ")
+        query   = "is:issue state:open (#{label_q}) #{repo_q}"
+
+        cache_key = "label_batch:#{query}"
+        cached = @cache.fetch("issues", cache_key)
+        return cached if cached
+
+        raw   = get_json("/search/issues", q: query, per_page: 100)
+        items = raw.fetch("items", [])
+        @cache.write("issues", cache_key, items)
+        items
+      end
+
+      def repo_key_from_search_result(issue)
+        issue.fetch("repository_url", "")
+             .delete_prefix("#{API_BASE}/repos/")
       end
 
       def issue_cache_key(project, labels)
